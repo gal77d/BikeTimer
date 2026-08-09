@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bike Timer Pro - Clean UI</title>
+    <title>Bike Timer Pro - Direction Fix</title>
     <style>
         body { 
             background: #0f1115; 
@@ -192,6 +192,7 @@
         let isFinished = false;
         let lastFrameData = null;
         let countdownTimer = null;
+        let motionStep = 0; // משמש למעקב אחרי שלבי המעבר בכיוון
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playBeep(freq, duration) {
@@ -272,6 +273,7 @@
             startTime = performance.now();
             isRunning = true;
             isArmed = true;
+            motionStep = 0;
             runDetection(session);
         }
 
@@ -292,9 +294,8 @@
             let startY = Math.floor(canvas.height * cropY);
             let endY = Math.floor(canvas.height * (1 - cropY));
 
-            let diffCount = 0;
-            let leftSideChanges = 0;
-            let rightSideChanges = 0;
+            let leftDiff = 0;
+            let rightDiff = 0;
             let midX = (startX + endX) / 2;
 
             for (let y = startY; y < endY; y += 10) {
@@ -305,34 +306,45 @@
                     let bDiff = Math.abs(currentData.data[i+2] - lastFrameData.data[i+2]);
 
                     if ((rDiff + gDiff + bDiff) > 100) {
-                        diffCount++;
-                        if (x < midX) leftSideChanges++;
-                        else rightSideChanges++;
+                        if (x < midX) leftDiff++;
+                        else rightDiff++;
                     }
                 }
             }
 
             let directionMode = document.getElementById('directionSelect').value;
-            let isDirectionValid = true;
+            let triggerFinished = false;
 
-            if (diffCount > 15) {
-                if (directionMode === "l2r") {
-                    // אם נבחר משמאל לימין, עיקר התנועה חייב להתחיל בצד שמאל
-                    isDirectionValid = (leftSideChanges > rightSideChanges);
-                } else if (directionMode === "r2l") {
-                    // אם נבחר מימין לשמאל, עיקר התנועה חייב להתחיל בצד ימין
-                    isDirectionValid = (rightSideChanges > leftSideChanges);
+            if (directionMode === "any") {
+                if ((leftDiff + rightDiff) > 15) triggerFinished = true;
+            } else if (directionMode === "l2r") {
+                // שלב 1: זיהוי תנועה בצד שמאל
+                if (motionStep === 0 && leftDiff > 10) {
+                    motionStep = 1;
                 }
+                // שלב 2: זיהוי המשך תנועה בצד ימין
+                else if (motionStep === 1 && rightDiff > 10) {
+                    triggerFinished = true;
+                }
+            } else if (directionMode === "r2l") {
+                // שלב 1: זיהוי תנועה בצד ימין
+                if (motionStep === 0 && rightDiff > 10) {
+                    motionStep = 1;
+                }
+                // שלב 2: זיהוי המשך תנועה בצד שמאל
+                else if (motionStep === 1 && leftDiff > 10) {
+                    triggerFinished = true;
+                }
+            }
 
-                if (isDirectionValid) {
-                    isRunning = false;
-                    isArmed = false;
-                    isFinished = true;
-                    playBeep(440, 0.5);
-                    statusDisplay.innerText = "הושלם בהצלחה!";
-                    saveResult(session, timerDisplay.innerText);
-                    return;
-                }
+            if (triggerFinished) {
+                isRunning = false;
+                isArmed = false;
+                isFinished = true;
+                playBeep(440, 0.5);
+                statusDisplay.innerText = "הושלם בהצלחה!";
+                saveResult(session, timerDisplay.innerText);
+                return;
             }
 
             lastFrameData = currentData;
@@ -369,6 +381,7 @@
             isRunning = false;
             isArmed = false;
             isFinished = false;
+            motionStep = 0;
             if (countdownTimer) clearInterval(countdownTimer);
             timerDisplay.innerText = "00.000";
             statusDisplay.innerText = "מוכן להתחלה";
