@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bike Timer Pro - Reset Fix</title>
+    <title>Bike Timer Pro - Multi Rider Custom Delay</title>
     <style>
         body { 
             background: #0f1115; 
@@ -151,7 +151,7 @@
                 </select>
             </div>
             <div style="flex: 1; text-align: right;">
-                <label style="font-size: 0.8rem;">השהייה:</label>
+                <label style="font-size: 0.8rem;">השהייה ראשונית:</label>
                 <select id="delaySelect">
                     <option value="5">5 שניות</option>
                     <option value="10" selected>10 שניות</option>
@@ -160,6 +160,15 @@
                     <option value="30">30 שניות</option>
                 </select>
             </div>
+        </div>
+        <div style="margin-top: 8px; text-align: right;">
+            <label style="font-size: 0.8rem;">השהייה בין רוכבים (בין סיומים):</label>
+            <select id="gapSelect">
+                <option value="3">3 שניות</option>
+                <option value="5" selected>5 שניות</option>
+                <option value="10">10 שניות</option>
+                <option value="15">15 שניות</option>
+            </select>
         </div>
     </div>
 
@@ -253,16 +262,23 @@
             isFinished = false;
             
             if (countdownTimer) clearInterval(countdownTimer);
+            if (nextRiderTimeout) clearTimeout(nextRiderTimeout);
 
             statusDisplay.innerText = `הכנה לרוכב 1 - מתחיל בעוד: ${delay} שניות...`;
             
             countdownTimer = setInterval(() => {
                 delay--;
+                // ביפ ב-3 השניות האחרונות (רק אם ההשהיה גדולה מ-5)
+                let initialDelay = parseInt(document.getElementById('delaySelect').value);
+                if (initialDelay > 5 && delay <= 3 && delay > 0) {
+                    playBeep(600, 0.1);
+                }
+
                 if (delay > 0) {
                     statusDisplay.innerText = `הכנה לרוכב 1 - מתחיל בעוד: ${delay} שניות...`;
                 } else {
                     clearInterval(countdownTimer);
-                    playBeep(880, 0.2);
+                    playBeep(880, 0.2); // ביפ סופי של תחילת ריצה
                     beginRun();
                 }
             }, 1000);
@@ -326,11 +342,12 @@
 
                 if (currentRider < totalRiders) {
                     currentRider++;
-                    statusDisplay.innerText = `רוכב ${currentRider - 1} סיים! מתכונן לרוכב ${currentRider}...`;
+                    let gapSeconds = parseInt(document.getElementById('gapSelect').value);
+                    statusDisplay.innerText = `רוכב ${currentRider - 1} סיים! מתחיל רוכב ${currentRider} בעוד ${gapSeconds} שניות...`;
                     
                     nextRiderTimeout = setTimeout(() => {
                         if (!isFinished) beginRun();
-                    }, 3000);
+                    }, gapSeconds * 1000);
                 } else {
                     isFinished = true;
                     statusDisplay.innerText = "כל הרוכבים סיימו בהצלחה!";
