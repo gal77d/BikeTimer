@@ -2,163 +2,119 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bike Timer Pro</title>
+    <title>Bike Timer Pro - Extreme</title>
     <style>
-        body {
-            margin: 0;
-            background-color: #121212;
-            color: #ffffff;
-            font-family: Arial, sans-serif;
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            overflow: hidden;
-        }
-        #timer {
-            font-size: 4rem;
-            font-weight: bold;
-            color: #00ffcc;
-            margin: 10px 0;
-        }
-        #status {
-            font-size: 1.2rem;
-            margin-bottom: 15px;
-            color: #ffaa00;
-        }
-        .controls {
-            margin-bottom: 15px;
-        }
-        button, select {
-            background-color: #00ffcc;
-            color: #121212;
-            border: none;
-            padding: 10px 20px;
-            font-size: 1rem;
-            font-weight: bold;
-            border-radius: 8px;
-            cursor: pointer;
-            margin: 5px;
-        }
-        select {
-            background-color: #ffffff;
-        }
-        video {
-            display: none;
-        }
-        canvas {
-            width: 80%;
-            max-width: 400px;
-            border: 3px solid #333;
-            border-radius: 10px;
-        }
+        body { background: #121212; color: white; font-family: sans-serif; text-align: center; padding: 20px; }
+        #timer { font-size: 4rem; color: #00ffcc; }
+        .controls { margin: 20px 0; }
+        input, select, button { padding: 10px; margin: 5px; border-radius: 8px; border: none; }
+        #leaderboard { margin-top: 20px; background: #222; padding: 10px; border-radius: 10px; display: inline-block; width: 80%; }
+        video { display: none; }
+        canvas { width: 90%; max-width: 400px; border: 3px solid #555; border-radius: 10px; }
     </style>
 </head>
 <body>
 
     <h1>מדידת זמן - אופני הרים</h1>
+    <input type="text" id="sessionName" placeholder="שם הסשן (למשל: ירידה צפונית)">
     
     <div class="controls">
-        <label for="delaySelect">השהיית התחלה:</label>
         <select id="delaySelect">
             <option value="5">5 שניות</option>
             <option value="10" selected>10 שניות</option>
-            <option value="15">15 שניות</option>
-            <option value="20">20 שניות</option>
             <option value="30">30 שניות</option>
         </select>
-        <br><br>
-        <button onclick="startCountdown()">הפעל טיימר</button>
+        <button onclick="startCountdown()">התחל סשן</button>
         <button onclick="resetTimer()">איפוס</button>
     </div>
 
     <div id="status">מוכן להתחלה</div>
     <div id="timer">00.000</div>
 
+    <div id="leaderboard">
+        <h3>תוצאות אחרונות</h3>
+        <ul id="resultsList" style="list-style: none; padding: 0;"></ul>
+    </div>
+
     <video id="webcam" autoplay playsinline></video>
     <canvas id="canvas"></canvas>
 
     <script>
-        const video = document.getElementById('webcam');
-        const canvas = document.getElementById('canvas');
+        const video = document.getElementById('webcam'), canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d', {willReadFrequently: true});
-        const timerDisplay = document.getElementById('timer');
-        const statusDisplay = document.getElementById('status');
-        const delaySelect = document.getElementById('delaySelect');
+        const timerDisplay = document.getElementById('timer'), statusDisplay = document.getElementById('status');
+        const resultsList = document.getElementById('resultsList');
+        
+        let startTime, isRunning = false, lastFrameData = null;
 
-        let startTime = 0;
-        let isRunning = false;
-        let isArmed = false;
-        let lastFrameData = null;
-        let countdownActive = false;
+        // יצירת צלילים
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playBeep(freq, duration) {
+            const osc = audioCtx.createOscillator();
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            osc.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
 
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-            .then(stream => { video.srcObject = stream; })
-            .catch(err => { statusDisplay.innerText = "שגיאה בגישה למצלמה!"; });
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(s => video.srcObject = s);
 
         function startCountdown() {
-            if (isRunning || countdownActive) return;
+            let delay = parseInt(document.getElementById('delaySelect').value);
+            let session = document.getElementById('sessionName').value || "סשן ללא שם";
             
-            let delay = parseInt(delaySelect.value);
-            countdownActive = true;
-            resetTimer();
-
-            let countdownTimer = setInterval(() => {
+            let count = setInterval(() => {
                 if (delay > 0) {
-                    statusDisplay.innerText = `מתחיל בעוד: ${delay} שניות... רץ להתארגן!`;
+                    statusDisplay.innerText = `מתחיל בעוד: ${delay} שניות...`;
                     delay--;
                 } else {
-                    clearInterval(countdownTimer);
-                    countdownActive = false;
-                    beginRun();
+                    clearInterval(count);
+                    playBeep(880, 0.2); // ביפ התחלה
+                    beginRun(session);
                 }
             }, 1000);
         }
 
-        function beginRun() {
-            statusDisplay.innerText = "ממתין לתנועה בקו הסיום!";
-            statusDisplay.style.color = "#00ffcc";
+        function beginRun(session) {
+            statusDisplay.innerText = "ממתין לתנועה בקו הסיום...";
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             lastFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             startTime = performance.now();
-            isArmed = true;
             isRunning = true;
-            runDetection();
+            runDetection(session);
         }
 
-        function runDetection() {
+        function runDetection(session) {
             if (!isRunning) return;
-            const elapsed = (performance.now() - startTime) / 1000;
-            timerDisplay.innerText = elapsed.toFixed(3);
+            timerDisplay.innerText = ((performance.now() - startTime) / 1000).toFixed(3);
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            let currentFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            if (isArmed && checkMotion(lastFrameData, currentFrameData)) {
-                isRunning = false;
-                isArmed = false;
-                statusDisplay.innerText = "הושלם בהצלחה!";
+            let currentData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+            // זיהוי תנועה משופר: רק אם השינוי חזק מאוד (רעש של טלפון לא יעצור)
+            let diff = 0;
+            for(let i = 0; i < currentData.data.length; i += 100) {
+                if(Math.abs(currentData.data[i] - lastFrameData.data[i]) > 80) diff++;
             }
-            lastFrameData = currentFrameData;
-            requestAnimationFrame(runDetection);
+
+            if (diff > 50) { // רגישות נמוכה כדי למנוע טעויות
+                isRunning = false;
+                playBeep(440, 0.5); // ביפ סיום
+                statusDisplay.innerText = "הושלם!";
+                saveResult(session, timerDisplay.innerText);
+            } else {
+                lastFrameData = currentData;
+                requestAnimationFrame(() => runDetection(session));
+            }
         }
 
-        function checkMotion(data1, data2) {
-            let diffCount = 0;
-            const d1 = data1.data, d2 = data2.data;
-            for (let i = 0; i < d1.length; i += 40) {
-                if (Math.abs(d1[i] - d2[i]) > 50 || Math.abs(d1[i+1] - d2[i+1]) > 50 || Math.abs(d1[i+2] - d2[i+2]) > 50) {
-                    diffCount++;
-                }
-            }
-            return diffCount > 100;
+        function saveResult(session, time) {
+            let li = document.createElement('li');
+            li.innerText = `${session}: ${time} שניות`;
+            resultsList.appendChild(li);
         }
 
         function resetTimer() {
             isRunning = false;
-            isArmed = false;
-            countdownActive = false;
             timerDisplay.innerText = "00.000";
             statusDisplay.innerText = "מוכן להתחלה";
         }
