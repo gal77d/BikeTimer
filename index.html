@@ -2,12 +2,13 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Bike Timer Pro - Focus Zone</title>
+    <title>Bike Timer Pro</title>
     <style>
         body { background: #121212; color: white; font-family: sans-serif; text-align: center; padding: 20px; }
         #timer { font-size: 4rem; color: #00ffcc; }
         .controls { margin: 20px 0; }
-        input, select, button { padding: 10px; margin: 5px; border-radius: 8px; border: none; }
+        input, select, button { padding: 10px; margin: 5px; border-radius: 8px; border: none; font-size: 1rem; }
+        button { background-color: #00ffcc; color: #121212; font-weight: bold; cursor: pointer; }
         #leaderboard { margin-top: 20px; background: #222; padding: 10px; border-radius: 10px; display: inline-block; width: 80%; }
         video { display: none; }
         canvas { width: 90%; max-width: 400px; border: 3px solid #00ffcc; border-radius: 10px; }
@@ -26,6 +27,7 @@
             <option value="20">20 שניות</option>
             <option value="30">30 שניות</option>
         </select>
+        <br>
         <button onclick="startCountdown()">התחל סשן</button>
         <button onclick="resetTimer()">איפוס</button>
     </div>
@@ -42,34 +44,50 @@
     <canvas id="canvas"></canvas>
 
     <script>
-        const video = document.getElementById('webcam'), canvas = document.getElementById('canvas');
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d', {willReadFrequently: true});
-        const timerDisplay = document.getElementById('timer'), statusDisplay = document.getElementById('status');
+        const timerDisplay = document.getElementById('timer');
+        const statusDisplay = document.getElementById('status');
         const resultsList = document.getElementById('resultsList');
         
-        let startTime, isRunning = false, lastFrameData = null;
+        let startTime = 0;
+        let isRunning = false;
+        let lastFrameData = null;
+        let countdownTimer = null;
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playBeep(freq, duration) {
-            const osc = audioCtx.createOscillator();
-            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            osc.connect(audioCtx.destination);
-            osc.start();
-            osc.stop(audioCtx.currentTime + duration);
+            try {
+                const osc = audioCtx.createOscillator();
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                osc.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch(e) {}
         }
 
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(s => video.srcObject = s);
+        // הפעלת מצלמה
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+            .then(stream => { video.srcObject = stream; })
+            .catch(err => { statusDisplay.innerText = "שגיאה בגישה למצלמה!"; });
 
         function startCountdown() {
-            let delay = parseInt(document.getElementById('delaySelect'].value);
+            if (isRunning) return;
+            
+            let delay = parseInt(document.getElementById('delaySelect').value);
             let session = document.getElementById('sessionName').value || "סשן ללא שם";
             
-            let count = setInterval(() => {
+            if (countdownTimer) clearInterval(countdownTimer);
+
+            statusDisplay.innerText = `מתחיל בעוד: ${delay} שניות...`;
+            
+            countdownTimer = setInterval(() => {
+                delay--;
                 if (delay > 0) {
                     statusDisplay.innerText = `מתחיל בעוד: ${delay} שניות...`;
-                    delay--;
                 } else {
-                    clearInterval(count);
+                    clearInterval(countdownTimer);
                     playBeep(880, 0.2);
                     beginRun(session);
                 }
@@ -78,8 +96,14 @@
 
         function beginRun(session) {
             statusDisplay.innerText = "ממתין לתנועה בקו הסיום...";
+            
+            // התאמת גודל הקנבס לווידאו
+            canvas.width = video.videoWidth || 300;
+            canvas.height = video.videoHeight || 150;
+
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             lastFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            
             startTime = performance.now();
             isRunning = true;
             runDetection(session);
@@ -87,12 +111,13 @@
 
         function runDetection(session) {
             if (!isRunning) return;
-            timerDisplay.innerText = ((performance.now() - startTime) / 1000).toFixed(3);
+
+            const elapsed = (performance.now() - startTime) / 1000;
+            timerDisplay.innerText = elapsed.toFixed(3);
             
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             let currentData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-            // הגדרת אזור ממוקד במרכז המסך בלבד (מתעלם מהצדדים והרקע)
             let startX = Math.floor(canvas.width * 0.3);
             let endX = Math.floor(canvas.width * 0.7);
             let startY = Math.floor(canvas.height * 0.3);
@@ -107,18 +132,16 @@
                     let gDiff = Math.abs(currentData.data[i+1] - lastFrameData.data[i+1]);
                     let bDiff = Math.abs(currentData.data[i+2] - lastFrameData.data[i+2]);
 
-                    // דורש שינוי צבע/אור משמעותי כדי לסנן רעשים קטנים
-                    if ((rDiff + gDiff + bDiff) > 120) {
+                    if ((rDiff + gDiff + bDiff) > 100) {
                         diffCount++;
                     }
                 }
             }
 
-            // יופעל רק אם יש כמות גדולה של שינויים בתוך אזור המיקוד
             if (diffCount > 15) {
                 isRunning = false;
                 playBeep(440, 0.5);
-                statusDisplay.innerText = "הושלם!";
+                statusDisplay.innerText = "הושלם בהצלחה!";
                 saveResult(session, timerDisplay.innerText);
             } else {
                 lastFrameData = currentData;
@@ -134,6 +157,7 @@
 
         function resetTimer() {
             isRunning = false;
+            if (countdownTimer) clearInterval(countdownTimer);
             timerDisplay.innerText = "00.000";
             statusDisplay.innerText = "מוכן להתחלה";
         }
