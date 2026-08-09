@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Bike Timer Pro - Extreme</title>
+    <title>Bike Timer Pro - Night Mode</title>
     <style>
         body { background: #121212; color: white; font-family: sans-serif; text-align: center; padding: 20px; }
         #timer { font-size: 4rem; color: #00ffcc; }
@@ -16,7 +16,7 @@
 <body>
 
     <h1>מדידת זמן - אופני הרים</h1>
-    <input type="text" id="sessionName" placeholder="שם הסשן (למשל: ירידה צפונית)">
+    <input type="text" id="sessionName" placeholder="שם הסשן (למשל: לילה צפונית)">
     
     <div class="controls">
         <select id="delaySelect">
@@ -45,9 +45,8 @@
         const timerDisplay = document.getElementById('timer'), statusDisplay = document.getElementById('status');
         const resultsList = document.getElementById('resultsList');
         
-        let startTime, isRunning = false, lastFrameData = null;
+        let startTime, isRunning = false, baseBrightness = 0;
 
-        // יצירת צלילים
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playBeep(freq, duration) {
             const osc = audioCtx.createOscillator();
@@ -69,40 +68,50 @@
                     delay--;
                 } else {
                     clearInterval(count);
-                    playBeep(880, 0.2); // ביפ התחלה
+                    playBeep(880, 0.2);
                     beginRun(session);
                 }
             }, 1000);
         }
 
         function beginRun(session) {
-            statusDisplay.innerText = "ממתין לתנועה בקו הסיום...";
+            statusDisplay.innerText = "ממתין לחצייה בקו הסיום...";
+            
+            // דגימת רמת האור ההתחלתית ברגע שהסשן מתחיל
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            lastFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            let frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            baseBrightness = getAverageBrightness(frame);
+
             startTime = performance.now();
             isRunning = true;
             runDetection(session);
         }
 
+        function getAverageBrightness(frameData) {
+            let colorSum = 0;
+            let pixels = frameData.data.length / 4;
+            for (let i = 0; i < frameData.data.length; i += 4) {
+                // חישוב בהירות ממוצעת לכל פיקסל (R+G+B)
+                colorSum += (frameData.data[i] + frameData.data[i+1] + frameData.data[i+2]) / 3;
+            }
+            return colorSum / pixels;
+        }
+
         function runDetection(session) {
             if (!isRunning) return;
             timerDisplay.innerText = ((performance.now() - startTime) / 1000).toFixed(3);
+            
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             let currentData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            let currentBrightness = getAverageBrightness(currentData);
 
-            // זיהוי תנועה משופר: רק אם השינוי חזק מאוד (רעש של טלפון לא יעצור)
-            let diff = 0;
-            for(let i = 0; i < currentData.data.length; i += 100) {
-                if(Math.abs(currentData.data[i] - lastFrameData.data[i]) > 80) diff++;
-            }
-
-            if (diff > 50) { // רגישות נמוכה כדי למנוע טעויות
+            // אם יש שינוי פתאומי וחד בבהירות (למשל צל של אופניים שעוברים או שינוי אור)
+            if (Math.abs(currentBrightness - baseBrightness) > 15) {
                 isRunning = false;
-                playBeep(440, 0.5); // ביפ סיום
+                playBeep(440, 0.5);
                 statusDisplay.innerText = "הושלם!";
                 saveResult(session, timerDisplay.innerText);
             } else {
-                lastFrameData = currentData;
                 requestAnimationFrame(() => runDetection(session));
             }
         }
