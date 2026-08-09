@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Bike Timer Pro - Custom Crop</title>
+    <title>Bike Timer Pro - Live Crop View</title>
     <style>
         body { background: #121212; color: white; font-family: sans-serif; text-align: center; padding: 15px; }
         #timer { font-size: 3.5rem; color: #00ffcc; }
@@ -12,7 +12,7 @@
         label { font-size: 0.85rem; display: inline-block; margin-left: 5px; }
         #leaderboard { margin-top: 15px; background: #222; padding: 10px; border-radius: 10px; display: inline-block; width: 80%; }
         video { display: none; }
-        canvas { width: 90%; max-width: 400px; border: 3px solid #00ffcc; border-radius: 10px; }
+        canvas { width: 90%; max-width: 400px; border: 3px solid #00ffcc; border-radius: 10px; background: #000; }
     </style>
 </head>
 <body>
@@ -21,8 +21,8 @@
     <input type="text" id="sessionName" placeholder="שם הסשן (למשל: ירידה צפונית)">
     
     <div class="crop-controls">
-        <label>חיתוך צדדים (רוחב): <input type="range" id="cropX" min="10" max="40" value="30"></label><br>
-        <label>חיתוך מעלה/מטה (גובה): <input type="range" id="cropY" min="10" max="40" value="30"></label>
+        <label>חיתוך צדדים (רוחב): <input type="range" id="cropX" min="5" max="45" value="25" oninput="drawPreview()"></label><br>
+        <label>חיתוך מעלה/מטה (גובה): <input type="range" id="cropY" min="5" max="45" value="25" oninput="drawPreview()"></label>
     </div>
 
     <div class="controls">
@@ -73,9 +73,34 @@
             } catch(e) {}
         }
 
+        video.addEventListener('loadedmetadata', () => {
+            canvas.width = video.videoWidth || 300;
+            canvas.height = video.videoHeight || 150;
+            drawPreview();
+        });
+
         navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
             .then(stream => { video.srcObject = stream; })
             .catch(err => { statusDisplay.innerText = "שגיאה בגישה למצלמה!"; });
+
+        // הצגת תצוגה מקדימה חתוכה בזמן הזזת הסליידרים
+        function drawPreview() {
+            if (!video.videoWidth) return;
+            ctx.drawImage(video, 0, 0);
+            
+            let cropX = parseInt(document.getElementById('cropX').value) / 100;
+            let cropY = parseInt(document.getElementById('cropY').value) / 100;
+
+            let sw = video.videoWidth * (1 - (cropX * 2));
+            let sh = video.videoHeight * (1 - (cropY * 2));
+            let sx = video.videoWidth * cropX;
+            let sy = video.videoHeight * cropY;
+
+            // מסגרת ויזואלית שמראה בדיוק מה נחתך
+            ctx.strokeStyle = "#ff4444";
+            ctx.lineWidth = 4;
+            ctx.strokeRect(sx, sy, sw, sh);
+        }
 
         function startCountdown() {
             if (isRunning) return;
@@ -100,7 +125,7 @@
         }
 
         function beginRun(session) {
-            statusDisplay.innerText = "ממתין לתנועה בקו הסיום...";
+            statusDisplay.innerText = "ממתין לתנועה באזור הנבחר...";
             canvas.width = video.videoWidth || 300;
             canvas.height = video.videoHeight || 150;
 
@@ -121,7 +146,6 @@
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             let currentData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-            // קריאת אחוזי החיתוך מהסליידרים במסך
             let cropX = parseInt(document.getElementById('cropX').value) / 100;
             let cropY = parseInt(document.getElementById('cropY').value) / 100;
 
@@ -132,6 +156,7 @@
 
             let diffCount = 0;
 
+            // בדיקת תנועה אך ורק בתוך אזור החיתוך
             for (let y = startY; y < endY; y += 10) {
                 for (let x = startX; x < endX; x += 10) {
                     let i = (y * canvas.width + x) * 4;
@@ -167,6 +192,7 @@
             if (countdownTimer) clearInterval(countdownTimer);
             timerDisplay.innerText = "00.000";
             statusDisplay.innerText = "מוכן להתחלה";
+            drawPreview();
         }
     </script>
 </body>
