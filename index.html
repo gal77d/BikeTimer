@@ -2,14 +2,15 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Bike Timer Pro</title>
+    <title>Bike Timer Pro - Custom Crop</title>
     <style>
-        body { background: #121212; color: white; font-family: sans-serif; text-align: center; padding: 20px; }
-        #timer { font-size: 4rem; color: #00ffcc; }
-        .controls { margin: 20px 0; }
-        input, select, button { padding: 10px; margin: 5px; border-radius: 8px; border: none; font-size: 1rem; }
+        body { background: #121212; color: white; font-family: sans-serif; text-align: center; padding: 15px; }
+        #timer { font-size: 3.5rem; color: #00ffcc; }
+        .controls, .crop-controls { margin: 15px 0; background: #1e1e1e; padding: 10px; border-radius: 10px; display: inline-block; }
+        input, select, button { padding: 8px; margin: 4px; border-radius: 8px; border: none; font-size: 0.9rem; }
         button { background-color: #00ffcc; color: #121212; font-weight: bold; cursor: pointer; }
-        #leaderboard { margin-top: 20px; background: #222; padding: 10px; border-radius: 10px; display: inline-block; width: 80%; }
+        label { font-size: 0.85rem; display: inline-block; margin-left: 5px; }
+        #leaderboard { margin-top: 15px; background: #222; padding: 10px; border-radius: 10px; display: inline-block; width: 80%; }
         video { display: none; }
         canvas { width: 90%; max-width: 400px; border: 3px solid #00ffcc; border-radius: 10px; }
     </style>
@@ -19,6 +20,11 @@
     <h1>מדידת זמן - אופני הרים</h1>
     <input type="text" id="sessionName" placeholder="שם הסשן (למשל: ירידה צפונית)">
     
+    <div class="crop-controls">
+        <label>חיתוך צדדים (רוחב): <input type="range" id="cropX" min="10" max="40" value="30"></label><br>
+        <label>חיתוך מעלה/מטה (גובה): <input type="range" id="cropY" min="10" max="40" value="30"></label>
+    </div>
+
     <div class="controls">
         <select id="delaySelect">
             <option value="5">5 שניות</option>
@@ -67,7 +73,6 @@
             } catch(e) {}
         }
 
-        // הפעלת מצלמה
         navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
             .then(stream => { video.srcObject = stream; })
             .catch(err => { statusDisplay.innerText = "שגיאה בגישה למצלמה!"; });
@@ -96,8 +101,6 @@
 
         function beginRun(session) {
             statusDisplay.innerText = "ממתין לתנועה בקו הסיום...";
-            
-            // התאמת גודל הקנבס לווידאו
             canvas.width = video.videoWidth || 300;
             canvas.height = video.videoHeight || 150;
 
@@ -118,10 +121,14 @@
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             let currentData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-            let startX = Math.floor(canvas.width * 0.3);
-            let endX = Math.floor(canvas.width * 0.7);
-            let startY = Math.floor(canvas.height * 0.3);
-            let endY = Math.floor(canvas.height * 0.7);
+            // קריאת אחוזי החיתוך מהסליידרים במסך
+            let cropX = parseInt(document.getElementById('cropX').value) / 100;
+            let cropY = parseInt(document.getElementById('cropY').value) / 100;
+
+            let startX = Math.floor(canvas.width * cropX);
+            let endX = Math.floor(canvas.width * (1 - cropX));
+            let startY = Math.floor(canvas.height * cropY);
+            let endY = Math.floor(canvas.height * (1 - cropY));
 
             let diffCount = 0;
 
