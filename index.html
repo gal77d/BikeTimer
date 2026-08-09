@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bike Timer Pro - Multi Rider Fixed</title>
+    <title>Bike Timer Pro - Reset Fix</title>
     <style>
         body { 
             background: #0f1115; 
@@ -194,6 +194,7 @@
         let isFinished = false;
         let lastFrameData = null;
         let countdownTimer = null;
+        let nextRiderTimeout = null;
         let currentRider = 1;
         let totalRiders = 1;
 
@@ -249,6 +250,7 @@
             let delay = parseInt(document.getElementById('delaySelect').value);
             totalRiders = parseInt(document.getElementById('ridersCount').value);
             currentRider = 1;
+            isFinished = false;
             
             if (countdownTimer) clearInterval(countdownTimer);
 
@@ -267,6 +269,7 @@
         }
 
         function beginRun() {
+            if (isFinished) return;
             statusDisplay.innerText = `ממתין לרוכב ${currentRider} מתוך ${totalRiders}...`;
             canvas.width = video.videoWidth || 300;
             canvas.height = video.videoHeight || 150;
@@ -277,7 +280,6 @@
             startTime = performance.now();
             isRunning = true;
             isArmed = true;
-            isFinished = false;
             runDetection();
         }
 
@@ -326,7 +328,7 @@
                     currentRider++;
                     statusDisplay.innerText = `רוכב ${currentRider - 1} סיים! מתכונן לרוכב ${currentRider}...`;
                     
-                    setTimeout(() => {
+                    nextRiderTimeout = setTimeout(() => {
                         if (!isFinished) beginRun();
                     }, 3000);
                 } else {
@@ -369,9 +371,10 @@
         function resetTimer() {
             isRunning = false;
             isArmed = false;
-            isFinished = true;
+            isFinished = false;
             currentRider = 1;
             if (countdownTimer) clearInterval(countdownTimer);
+            if (nextRiderTimeout) clearTimeout(nextRiderTimeout);
             timerDisplay.innerText = "00.000";
             statusDisplay.innerText = "מוכן להתחלה";
             drawPreview();
