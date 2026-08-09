@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bike Timer Pro - Auto Start/Stop by Motion</title>
+    <title>Bike Timer Pro - 7s Auto Delay Protection</title>
     <style>
         body { 
             background: #0f1115; 
@@ -279,8 +279,7 @@
             if (nextRiderTimeout) clearTimeout(nextRiderTimeout);
 
             if (delaySetting === "auto_motion") {
-                // מצב תנועה אוטומטי מלא (פעם ראשונה מתחיל, פעם שנייה עוצר)
-                statusDisplay.innerText = `ממתין לרוכב ${currentRider} — עבור בפריים כדי להתחיל!`;
+                statusDisplay.innerText = `ממתין לרוכב ${currentRider} — עבור בפריים להתחלה!`;
                 canvas.width = video.videoWidth || 300;
                 canvas.height = video.videoHeight || 150;
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -288,7 +287,6 @@
                 isWaitingForStartMotion = true;
                 runAutoMotionDetection();
             } else {
-                // מצב עם השהיית זמן רגילה
                 let delay = parseInt(delaySetting);
                 statusDisplay.innerText = `הכנה לרוכב 1 - מתחיל בעוד: ${delay} שניות...`;
                 
@@ -345,14 +343,19 @@
                     playBeep(1200, 0.4);
                     startTime = performance.now();
                     isRunning = true;
-                    statusDisplay.innerText = `רוכב ${currentRider} בדרך! עבור שוב בסיום לעצירה.`;
-                    // משהה קليل כדי לא לתפוס את אותו מעבר מיד כעצירה
-                    setTimeout(() => {
-                        lastFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                        requestAnimationFrame(runAutoMotionDetection);
-                    }, 1000);
+                    statusDisplay.innerText = `רוכב ${currentRider} בדרך!`;
+                    lastFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    requestAnimationFrame(runAutoMotionDetection);
                     return;
                 } else if (isRunning) {
+                    // בדיקה שעברו לפחות 3 שניות מתחילת הריצה כדי למנוע עצירה מיידית
+                    const elapsedCheck = (performance.now() - startTime) / 1000;
+                    if (elapsedCheck < 3) {
+                        lastFrameData = currentData;
+                        requestAnimationFrame(runAutoMotionDetection);
+                        return;
+                    }
+
                     // זיהוי מעבר שני -> עצירת הטיימר!
                     isRunning = false;
                     playBeep(500, 0.5);
@@ -392,6 +395,13 @@
             if (isRunning) {
                 const elapsed = (performance.now() - startTime) / 1000;
                 timerDisplay.innerText = elapsed.toFixed(3);
+                
+                // השהיית 7 שניות אוטומטית שבה המערכת מתעלמת מעצירה כדי שהרוכב יספיק לצאת מהפריים
+                if (elapsed < 7) {
+                    lastFrameData = currentData;
+                    requestAnimationFrame(runAutoMotionDetection);
+                    return;
+                }
             }
 
             lastFrameData = currentData;
@@ -446,7 +456,8 @@
                 }
             }
 
-            if (diffCount > 15) {
+            // מניעת עצירה ב-3 שניות הראשונות
+            if (diffCount > 15 && elapsed >= 3) {
                 isRunning = false;
                 playBeep(500, 0.5);
                 
