@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bike Timer Pro - 7s Auto Delay Protection</title>
+    <title>Bike Timer Pro - 7s Prep Delay</title>
     <style>
         body { 
             background: #0f1115; 
@@ -279,13 +279,31 @@
             if (nextRiderTimeout) clearTimeout(nextRiderTimeout);
 
             if (delaySetting === "auto_motion") {
-                statusDisplay.innerText = `ממתין לרוכב ${currentRider} — עבור בפריים להתחלה!`;
-                canvas.width = video.videoWidth || 300;
-                canvas.height = video.videoHeight || 150;
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                lastFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                isWaitingForStartMotion = true;
-                runAutoMotionDetection();
+                // דילאי התארגנות של 7 שניות לפני שהמערכת נדרכת במצב אוטומטי
+                let prepDelay = 7;
+                statusDisplay.innerText = `התארגנות רוכב ${currentRider} — מתחיל בעוד ${prepDelay} שניות...`;
+                
+                countdownTimer = setInterval(() => {
+                    prepDelay--;
+                    if (prepDelay <= 3 && prepDelay > 0) {
+                        playBeep(800, 0.25);
+                    }
+
+                    if (prepDelay > 0) {
+                        statusDisplay.innerText = `התארגנות רוכב ${currentRider} — מתחיל בעוד ${prepDelay} שניות...`;
+                    } else {
+                        clearInterval(countdownTimer);
+                        playBeep(1200, 0.5); // ביפ פתיחה
+                        
+                        statusDisplay.innerText = `ממתין לתנועה של רוכב ${currentRider} — עבור בפריים להתחלה!`;
+                        canvas.width = video.videoWidth || 300;
+                        canvas.height = video.videoHeight || 150;
+                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        lastFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        isWaitingForStartMotion = true;
+                        runAutoMotionDetection();
+                    }
+                }, 1000);
             } else {
                 let delay = parseInt(delaySetting);
                 statusDisplay.innerText = `הכנה לרוכב 1 - מתחיל בעוד: ${delay} שניות...`;
@@ -348,7 +366,6 @@
                     requestAnimationFrame(runAutoMotionDetection);
                     return;
                 } else if (isRunning) {
-                    // בדיקה שעברו לפחות 3 שניות מתחילת הריצה כדי למנוע עצירה מיידית
                     const elapsedCheck = (performance.now() - startTime) / 1000;
                     if (elapsedCheck < 3) {
                         lastFrameData = currentData;
@@ -378,10 +395,24 @@
                             if (gapCounter <= 0) {
                                 clearInterval(gapTimer);
                                 playBeep(1200, 0.4);
-                                isWaitingForStartMotion = true;
-                                statusDisplay.innerText = `ממתין לרוכב ${currentRider} — עבור בפריים להתחלה!`;
-                                lastFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                                runAutoMotionDetection();
+                                // דילאי התארגנות של 7 שניות גם לפני הרוכב הבא
+                                let nextPrep = 7;
+                                statusDisplay.innerText = `התארגנות רוכב ${currentRider} — מתחיל בעוד ${nextPrep} שניות...`;
+                                
+                                let nextTimer = setInterval(() => {
+                                    nextPrep--;
+                                    if (nextPrep <= 3 && nextPrep > 0) {
+                                        playBeep(800, 0.25);
+                                    }
+                                    if (nextPrep <= 0) {
+                                        clearInterval(nextTimer);
+                                        playBeep(1200, 0.5);
+                                        isWaitingForStartMotion = true;
+                                        statusDisplay.innerText = `ממתין לתנועה של רוכב ${currentRider} — עבור בפריים להתחלה!`;
+                                        lastFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                                        runAutoMotionDetection();
+                                    }
+                                }, 1000);
                             }
                         }, 1000);
                     } else {
@@ -396,7 +427,6 @@
                 const elapsed = (performance.now() - startTime) / 1000;
                 timerDisplay.innerText = elapsed.toFixed(3);
                 
-                // השהיית 7 שניות אוטומטית שבה המערכת מתעלמת מעצירה כדי שהרוכב יספיק לצאת מהפריים
                 if (elapsed < 7) {
                     lastFrameData = currentData;
                     requestAnimationFrame(runAutoMotionDetection);
@@ -456,7 +486,6 @@
                 }
             }
 
-            // מניעת עצירה ב-3 שניות הראשונות
             if (diffCount > 15 && elapsed >= 3) {
                 isRunning = false;
                 playBeep(500, 0.5);
