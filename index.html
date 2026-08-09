@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bike Timer Pro - Multi Rider</title>
+    <title>Bike Timer Pro - Multi Rider Fixed</title>
     <style>
         body { 
             background: #0f1115; 
@@ -326,7 +326,6 @@
                     currentRider++;
                     statusDisplay.innerText = `רוכב ${currentRider - 1} סיים! מתכונן לרוכב ${currentRider}...`;
                     
-                    // המתנה של 3 שניות מעבר בין רוכבים ואז התחלה מחדש אוטומטית
                     setTimeout(() => {
                         if (!isFinished) beginRun();
                     }, 3000);
@@ -338,7 +337,7 @@
             }
 
             lastFrameData = currentData;
-            requestAnimationFrame(() => runDetection);
+            requestAnimationFrame(runDetection);
         }
 
         function saveResult(session, time) {
