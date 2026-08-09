@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Bike Timer Pro - Live Crop View</title>
+    <title>Bike Timer Pro - Live After Finish</title>
     <style>
         body { background: #121212; color: white; font-family: sans-serif; text-align: center; padding: 15px; }
         #timer { font-size: 3.5rem; color: #00ffcc; }
@@ -21,8 +21,8 @@
     <input type="text" id="sessionName" placeholder="שם הסשן (למשל: ירידה צפונית)">
     
     <div class="crop-controls">
-        <label>חיתוך צדדים (רוחב): <input type="range" id="cropX" min="5" max="45" value="25" oninput="drawPreview()"></label><br>
-        <label>חיתוך מעלה/מטה (גובה): <input type="range" id="cropY" min="5" max="45" value="25" oninput="drawPreview()"></label>
+        <label>חיתוך צדדים (רוחב): <input type="range" id="cropX" min="5" max="45" value="25" oninput="if(!isRunning) drawPreview()"></label><br>
+        <label>חיתוך מעלה/מטה (גובה): <input type="range" id="cropY" min="5" max="45" value="25" oninput="if(!isRunning) drawPreview()"></label>
     </div>
 
     <div class="controls">
@@ -59,6 +59,7 @@
         
         let startTime = 0;
         let isRunning = false;
+        let isArmed = false;
         let lastFrameData = null;
         let countdownTimer = null;
 
@@ -76,34 +77,40 @@
         video.addEventListener('loadedmetadata', () => {
             canvas.width = video.videoWidth || 300;
             canvas.height = video.videoHeight || 150;
-            drawPreview();
+            drawLiveFeed();
         });
 
         navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
             .then(stream => { video.srcObject = stream; })
             .catch(err => { statusDisplay.innerText = "שגיאה בגישה למצלמה!"; });
 
-        // הצגת תצוגה מקדימה חתוכה בזמן הזזת הסליידרים
-        function drawPreview() {
+        // הצגת תצוגה חיפוש/חיתוך רציפה כשלא בריצה
+        function drawLiveFeed() {
             if (!video.videoWidth) return;
-            ctx.drawImage(video, 0, 0);
-            
+            if (!isRunning && !isArmed) {
+                drawPreview();
+            }
+            requestAnimationFrame(drawLiveFeed);
+        }
+        requestAnimationFrame(drawLiveFeed);
+
+        function drawPreview() {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             let cropX = parseInt(document.getElementById('cropX').value) / 100;
             let cropY = parseInt(document.getElementById('cropY').value) / 100;
 
-            let sw = video.videoWidth * (1 - (cropX * 2));
-            let sh = video.videoHeight * (1 - (cropY * 2));
-            let sx = video.videoWidth * cropX;
-            let sy = video.videoHeight * cropY;
+            let sw = canvas.width * (1 - (cropX * 2));
+            let sh = canvas.height * (1 - (cropY * 2));
+            let sx = canvas.width * cropX;
+            let sy = canvas.height * cropY;
 
-            // מסגרת ויזואלית שמראה בדיוק מה נחתך
             ctx.strokeStyle = "#ff4444";
             ctx.lineWidth = 4;
             ctx.strokeRect(sx, sy, sw, sh);
         }
 
         function startCountdown() {
-            if (isRunning) return;
+            if (isRunning || isArmed) return;
             
             let delay = parseInt(document.getElementById('delaySelect').value);
             let session = document.getElementById('sessionName').value || "סשן ללא שם";
@@ -134,6 +141,7 @@
             
             startTime = performance.now();
             isRunning = true;
+            isArmed = true;
             runDetection(session);
         }
 
@@ -156,7 +164,6 @@
 
             let diffCount = 0;
 
-            // בדיקת תנועה אך ורק בתוך אזור החיתוך
             for (let y = startY; y < endY; y += 10) {
                 for (let x = startX; x < endX; x += 10) {
                     let i = (y * canvas.width + x) * 4;
@@ -172,6 +179,7 @@
 
             if (diffCount > 15) {
                 isRunning = false;
+                isArmed = false;
                 playBeep(440, 0.5);
                 statusDisplay.innerText = "הושלם בהצלחה!";
                 saveResult(session, timerDisplay.innerText);
@@ -189,10 +197,10 @@
 
         function resetTimer() {
             isRunning = false;
+            isArmed = false;
             if (countdownTimer) clearInterval(countdownTimer);
             timerDisplay.innerText = "00.000";
             statusDisplay.innerText = "מוכן להתחלה";
-            drawPreview();
         }
     </script>
 </body>
