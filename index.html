@@ -2,15 +2,16 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Bike Timer Pro - Freeze on Finish</title>
+    <title>Bike Timer Pro - Direction & Storage</title>
     <style>
         body { background: #121212; color: white; font-family: sans-serif; text-align: center; padding: 15px; }
         #timer { font-size: 3.5rem; color: #00ffcc; }
-        .controls, .crop-controls { margin: 15px 0; background: #1e1e1e; padding: 10px; border-radius: 10px; display: inline-block; }
+        .controls, .crop-controls { margin: 10px 0; background: #1e1e1e; padding: 10px; border-radius: 10px; display: inline-block; }
         input, select, button { padding: 8px; margin: 4px; border-radius: 8px; border: none; font-size: 0.9rem; }
         button { background-color: #00ffcc; color: #121212; font-weight: bold; cursor: pointer; }
+        .clear-btn { background-color: #ff4444; color: white; font-size: 0.8rem; padding: 5px 10px; margin-top: 10px; }
         label { font-size: 0.85rem; display: inline-block; margin-left: 5px; }
-        #leaderboard { margin-top: 15px; background: #222; padding: 10px; border-radius: 10px; display: inline-block; width: 80%; }
+        #leaderboard { margin-top: 15px; background: #222; padding: 10px; border-radius: 10px; display: inline-block; width: 85%; max-width: 400px; }
         video { display: none; }
         canvas { width: 90%; max-width: 400px; border: 3px solid #00ffcc; border-radius: 10px; background: #000; }
     </style>
@@ -26,6 +27,14 @@
     </div>
 
     <div class="controls">
+        <label for="directionSelect">כיוון נסיעה:</label>
+        <select id="directionSelect">
+            <option value="any" selected>כל כיוון</option>
+            <option value="l2r">משמאל לימין ➔</option>
+            <option value="r2l">מימין לשמאל ⬅</option>
+        </select>
+        <br>
+        <label for="delaySelect">השהיית התחלה:</label>
         <select id="delaySelect">
             <option value="5">5 שניות</option>
             <option value="10" selected>10 שניות</option>
@@ -42,8 +51,9 @@
     <div id="timer">00.000</div>
 
     <div id="leaderboard">
-        <h3>תוצאות אחרונות</h3>
-        <ul id="resultsList" style="list-style: none; padding: 0;"></ul>
+        <h3>תוצאות שמורות</h3>
+        <ul id="resultsList" style="list-style: none; padding: 0; max-height: 150px; overflow-y: auto;"></ul>
+        <button class="clear-btn" onclick="clearHistory()">מחק היסטוריה</button>
     </div>
 
     <video id="webcam" autoplay playsinline></video>
@@ -62,6 +72,7 @@
         let isArmed = false;
         let isFinished = false;
         let lastFrameData = null;
+        let lastMotionX = null;
         let countdownTimer = null;
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -75,6 +86,9 @@
             } catch(e) {}
         }
 
+        // טעינת היסטוריה מזיכרון המכשיר
+        window.addEventListener('DOMContentLoaded', loadHistory);
+
         video.addEventListener('loadedmetadata', () => {
             canvas.width = video.videoWidth || 300;
             canvas.height = video.videoHeight || 150;
@@ -87,13 +101,11 @@
 
         function drawLiveFeed() {
             if (!video.videoWidth) return;
-            // מציג לייב רק כשלא בריצה וגם לא סיים את הסשן
             if (!isRunning && !isArmed && !isFinished) {
                 drawPreview();
             }
             requestAnimationFrame(drawLiveFeed);
         }
-        requestAnimationFrame(drawLiveFeed);
 
         function drawPreview() {
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -133,12 +145,13 @@
         }
 
         function beginRun(session) {
-            statusDisplay.innerText = "ממתין לתנועה באזור הנבחר...";
+            statusDisplay.innerText = "ממתין לתנועה בכיוון הנבחר...";
             canvas.width = video.videoWidth || 300;
             canvas.height = video.videoHeight || 150;
 
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             lastFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            lastMotionX = null;
             
             startTime = performance.now();
             isRunning = true;
@@ -164,6 +177,7 @@
             let endY = Math.floor(canvas.height * (1 - cropY));
 
             let diffCount = 0;
+            let sumX = 0;
 
             for (let y = startY; y < endY; y += 10) {
                 for (let x = startX; x < endX; x += 10) {
@@ -174,34 +188,67 @@
 
                     if ((rDiff + gDiff + bDiff) > 100) {
                         diffCount++;
+                        sumX += x;
                     }
                 }
             }
 
-            if (diffCount > 15) {
-                // עצירה והקפאה על הפריים שבו זוהתה החצייה
+            let directionMode = document.getElementById('directionSelect').value;
+            let currentX = diffCount > 0 ? (sumX / diffCount) : null;
+            let isDirectionValid = true;
+
+            // בדיקת כיוון תנועה (משמאל לימין או מימין לשמאל)
+            if (directionMode === "l2r" && lastMotionX !== null && currentX !== null) {
+                isDirectionValid = (currentX >= lastMotionX - 10);
+            } else if (directionMode === "r2l" && lastMotionX !== null && currentX !== null) {
+                isDirectionValid = (currentX <= lastMotionX + 10);
+            }
+
+            if (diffCount > 15 && isDirectionValid) {
                 isRunning = false;
                 isArmed = false;
-                isFinished = true; // מסמן שהסשן הסתיים והמסך קפוא
+                isFinished = true;
                 playBeep(440, 0.5);
                 statusDisplay.innerText = "הושלם בהצלחה!";
                 saveResult(session, timerDisplay.innerText);
             } else {
+                if (diffCount > 5) lastMotionX = currentX;
                 lastFrameData = currentData;
                 requestAnimationFrame(() => runDetection(session));
             }
         }
 
         function saveResult(session, time) {
-            let li = document.createElement('li');
-            li.innerText = `${session}: ${time} שניות`;
-            resultsList.appendChild(li);
+            let history = JSON.parse(localStorage.getItem('bikeTimerHistory') || '[]');
+            history.unshift({ session, time });
+            localStorage.setItem('bikeTimerHistory', JSON.stringify(history));
+            renderHistory(history);
+        }
+
+        function loadHistory() {
+            let history = JSON.parse(localStorage.getItem('bikeTimerHistory') || '[]');
+            renderHistory(history);
+        }
+
+        function renderHistory(history) {
+            resultsList.innerHTML = '';
+            history.forEach(item => {
+                let li = document.createElement('li');
+                li.innerText = `${item.session}: ${item.time} שניות`;
+                resultsList.appendChild(li);
+            });
+        }
+
+        function clearHistory() {
+            localStorage.removeItem('bikeTimerHistory');
+            resultsList.innerHTML = '';
         }
 
         function resetTimer() {
             isRunning = false;
             isArmed = false;
-            isFinished = false; // משחרר את הקפאת המסך חזרה ללייב
+            isFinished = false;
+            lastMotionX = null;
             if (countdownTimer) clearInterval(countdownTimer);
             timerDisplay.innerText = "00.000";
             statusDisplay.innerText = "מוכן להתחלה";
