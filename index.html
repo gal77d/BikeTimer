@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Bike Timer Pro - Sharp Vision</title>
+    <title>Bike Timer Pro - Focus Zone</title>
     <style>
         body { background: #121212; color: white; font-family: sans-serif; text-align: center; padding: 20px; }
         #timer { font-size: 4rem; color: #00ffcc; }
@@ -10,7 +10,7 @@
         input, select, button { padding: 10px; margin: 5px; border-radius: 8px; border: none; }
         #leaderboard { margin-top: 20px; background: #222; padding: 10px; border-radius: 10px; display: inline-block; width: 80%; }
         video { display: none; }
-        canvas { width: 90%; max-width: 400px; border: 3px solid #555; border-radius: 10px; }
+        canvas { width: 90%; max-width: 400px; border: 3px solid #00ffcc; border-radius: 10px; }
     </style>
 </head>
 <body>
@@ -61,7 +61,7 @@
         navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(s => video.srcObject = s);
 
         function startCountdown() {
-            let delay = parseInt(document.getElementById('delaySelect').value);
+            let delay = parseInt(document.getElementById('delaySelect'].value);
             let session = document.getElementById('sessionName').value || "סשן ללא שם";
             
             let count = setInterval(() => {
@@ -92,20 +92,30 @@
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             let currentData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
+            // הגדרת אזור ממוקד במרכז המסך בלבד (מתעלם מהצדדים והרקע)
+            let startX = Math.floor(canvas.width * 0.3);
+            let endX = Math.floor(canvas.width * 0.7);
+            let startY = Math.floor(canvas.height * 0.3);
+            let endY = Math.floor(canvas.height * 0.7);
+
             let diffCount = 0;
-            // רגישות גבוהה יותר שבודקת יותר פיקסלים בהפרש נמוך יותר (מזהה גם מרחוק)
-            for(let i = 0; i < currentData.data.length; i += 30) {
-                let rDiff = Math.abs(currentData.data[i] - lastFrameData.data[i]);
-                let gDiff = Math.abs(currentData.data[i+1] - lastFrameData.data[i+1]);
-                let bDiff = Math.abs(currentData.data[i+2] - lastFrameData.data[i+2]);
-                
-                if((rDiff + gDiff + bDiff) > 50) {
-                    diffCount++;
+
+            for (let y = startY; y < endY; y += 10) {
+                for (let x = startX; x < endX; x += 10) {
+                    let i = (y * canvas.width + x) * 4;
+                    let rDiff = Math.abs(currentData.data[i] - lastFrameData.data[i]);
+                    let gDiff = Math.abs(currentData.data[i+1] - lastFrameData.data[i+1]);
+                    let bDiff = Math.abs(currentData.data[i+2] - lastFrameData.data[i+2]);
+
+                    // דורש שינוי צבע/אור משמעותי כדי לסנן רעשים קטנים
+                    if ((rDiff + gDiff + bDiff) > 120) {
+                        diffCount++;
+                    }
                 }
             }
 
-            // אם יש מספיק שינוי פיקסלים, הטיימר עוצר
-            if (diffCount > 40) {
+            // יופעל רק אם יש כמות גדולה של שינויים בתוך אזור המיקוד
+            if (diffCount > 15) {
                 isRunning = false;
                 playBeep(440, 0.5);
                 statusDisplay.innerText = "הושלם!";
