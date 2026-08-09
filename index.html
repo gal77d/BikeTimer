@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bike Timer Pro - Loud Beeps</title>
+    <title>Bike Timer Pro - Auto Start/Stop by Motion</title>
     <style>
         body { 
             background: #0f1115; 
@@ -153,11 +153,15 @@
             <div style="flex: 1; text-align: right;">
                 <label style="font-size: 0.8rem;">השהייה ראשונית:</label>
                 <select id="delaySelect">
+                    <option value="auto_motion" selected>אוטומטי (תנועה מתחילה ועוצרת)</option>
                     <option value="5">5 שניות</option>
-                    <option value="10" selected>10 שניות</option>
+                    <option value="10">10 שניות</option>
                     <option value="15">15 שניות</option>
                     <option value="20">20 שניות</option>
                     <option value="30">30 שניות</option>
+                    <option value="60">דקה אחת (60 ש')</option>
+                    <option value="120">2 דקות (120 ש')</option>
+                    <option value="180">3 דקות (180 ש')</option>
                 </select>
             </div>
         </div>
@@ -173,7 +177,7 @@
     </div>
 
     <div class="big-btn-container">
-        <button class="action-btn" onclick="startCountdown()">התחל סשן</button>
+        <button class="action-btn" onclick="startSession()">התחל סשן</button>
         <button class="reset-btn" onclick="resetTimer()">איפוס</button>
     </div>
 
@@ -199,16 +203,16 @@
         
         let startTime = 0;
         let isRunning = false;
-        let isArmed = false;
+        let isWaitingForStartMotion = false;
         let isFinished = false;
         let lastFrameData = null;
         let countdownTimer = null;
+        let nextRiderTimeout = null;
         let currentRider = 1;
         let totalRiders = 1;
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
-        // פונקציית צליל עם הגברת עוצמה (Gain) כדי שהביפים יהיו חזקים במיוחד
         function playBeep(freq, duration) {
             try {
                 if (audioCtx.state === 'suspended') {
@@ -218,8 +222,6 @@
                 const gainNode = audioCtx.createGain();
                 
                 osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-                
-                // הגברת עוצמה חזקה
                 gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
                 
                 osc.connect(gainNode);
@@ -244,7 +246,7 @@
 
         function drawLiveFeed() {
             if (!video.videoWidth) return;
-            if (!isRunning && !isArmed && !isFinished) {
+            if (!isRunning && !isWaitingForStartMotion && !isFinished) {
                 drawPreview();
             }
             requestAnimationFrame(drawLiveFeed);
@@ -265,36 +267,140 @@
             ctx.strokeRect(sx, sy, sw, sh);
         }
 
-        function startCountdown() {
-            if (isRunning || isArmed) return;
+        function startSession() {
+            if (isRunning || isWaitingForStartMotion) return;
             
-            let delay = parseInt(document.getElementById('delaySelect').value);
+            let delaySetting = document.getElementById('delaySelect').value;
             totalRiders = parseInt(document.getElementById('ridersCount').value);
             currentRider = 1;
             isFinished = false;
             
             if (countdownTimer) clearInterval(countdownTimer);
+            if (nextRiderTimeout) clearTimeout(nextRiderTimeout);
 
-            statusDisplay.innerText = `הכנה לרוכב 1 - מתחיל בעוד: ${delay} שניות...`;
-            
-            countdownTimer = setInterval(() => {
-                delay--;
-                // 3 שניות אחרונות - ביפים חזקים וגבוהים (800Hz)
-                if (delay <= 3 && delay > 0) {
-                    playBeep(800, 0.25);
-                }
+            if (delaySetting === "auto_motion") {
+                // מצב תנועה אוטומטי מלא (פעם ראשונה מתחיל, פעם שנייה עוצר)
+                statusDisplay.innerText = `ממתין לרוכב ${currentRider} — עבור בפריים כדי להתחיל!`;
+                canvas.width = video.videoWidth || 300;
+                canvas.height = video.videoHeight || 150;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                lastFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                isWaitingForStartMotion = true;
+                runAutoMotionDetection();
+            } else {
+                // מצב עם השהיית זמן רגילה
+                let delay = parseInt(delaySetting);
+                statusDisplay.innerText = `הכנה לרוכב 1 - מתחיל בעוד: ${delay} שניות...`;
+                
+                countdownTimer = setInterval(() => {
+                    delay--;
+                    if (delay <= 3 && delay > 0) {
+                        playBeep(800, 0.25);
+                    }
 
-                if (delay > 0) {
-                    statusDisplay.innerText = `הכנה לרוכב 1 - מתחיל בעוד: ${delay} שניות...`;
-                } else {
-                    clearInterval(countdownTimer);
-                    playBeep(1200, 0.5); // ביפ פתיחה חזק וארוך מאוד!
-                    beginRun();
-                }
-            }, 1000);
+                    if (delay > 0) {
+                        statusDisplay.innerText = `הכנה לרוכב 1 - מתחיל בעוד: ${delay} שניות...`;
+                    } else {
+                        clearInterval(countdownTimer);
+                        playBeep(1200, 0.5);
+                        beginRunTimer();
+                    }
+                }, 1000);
+            }
         }
 
-        function beginRun() {
+        function runAutoMotionDetection() {
+            if (!isWaitingForStartMotion && !isRunning) return;
+
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            let currentData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+            let cropX = parseInt(document.getElementById('cropX').value) / 100;
+            let cropY = parseInt(document.getElementById('cropY').value) / 100;
+
+            let startX = Math.floor(canvas.width * cropX);
+            let endX = Math.floor(canvas.width * (1 - cropX));
+            let startY = Math.floor(canvas.height * cropY);
+            let endY = Math.floor(canvas.height * (1 - cropY));
+
+            let diffCount = 0;
+
+            for (let y = startY; y < endY; y += 10) {
+                for (let x = startX; x < endX; x += 10) {
+                    let i = (y * canvas.width + x) * 4;
+                    let rDiff = Math.abs(currentData.data[i] - lastFrameData.data[i]);
+                    let gDiff = Math.abs(currentData.data[i+1] - lastFrameData.data[i+1]);
+                    let bDiff = Math.abs(currentData.data[i+2] - lastFrameData.data[i+2]);
+
+                    if ((rDiff + gDiff + bDiff) > 80) {
+                        diffCount++;
+                    }
+                }
+            }
+
+            if (diffCount > 15) {
+                if (isWaitingForStartMotion) {
+                    // זיהוי מעבר ראשון -> התחלת הטיימר!
+                    isWaitingForStartMotion = false;
+                    playBeep(1200, 0.4);
+                    startTime = performance.now();
+                    isRunning = true;
+                    statusDisplay.innerText = `רוכב ${currentRider} בדרך! עבור שוב בסיום לעצירה.`;
+                    // משהה קليل כדי לא לתפוס את אותו מעבר מיד כעצירה
+                    setTimeout(() => {
+                        lastFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        requestAnimationFrame(runAutoMotionDetection);
+                    }, 1000);
+                    return;
+                } else if (isRunning) {
+                    // זיהוי מעבר שני -> עצירת הטיימר!
+                    isRunning = false;
+                    playBeep(500, 0.5);
+                    
+                    let sessionName = document.getElementById('sessionName').value || "סשן";
+                    let recordName = `${sessionName} (רוכב ${currentRider})`;
+                    saveResult(recordName, timerDisplay.innerText);
+
+                    if (currentRider < totalRiders) {
+                        currentRider++;
+                        let gapSeconds = parseInt(document.getElementById('gapSelect').value);
+                        statusDisplay.innerText = `רוכב ${currentRider - 1} סיים! מתחיל רוכב ${currentRider} בעוד ${gapSeconds} שניות...`;
+                        
+                        let gapCounter = gapSeconds;
+                        let gapTimer = setInterval(() => {
+                            gapCounter--;
+                            if (gapCounter <= 3 && gapCounter > 0) {
+                                playBeep(800, 0.25);
+                            }
+                            if (gapCounter <= 0) {
+                                clearInterval(gapTimer);
+                                playBeep(1200, 0.4);
+                                isWaitingForStartMotion = true;
+                                statusDisplay.innerText = `ממתין לרוכב ${currentRider} — עבור בפריים להתחלה!`;
+                                lastFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                                runAutoMotionDetection();
+                            }
+                        }, 1000);
+                    } else {
+                        isFinished = true;
+                        statusDisplay.innerText = "כל הרוכבים סיימו בהצלחה!";
+                    }
+                    return;
+                }
+            }
+
+            if (isRunning) {
+                const elapsed = (performance.now() - startTime) / 1000;
+                timerDisplay.innerText = elapsed.toFixed(3);
+            }
+
+            lastFrameData = currentData;
+            if (isWaitingForStartMotion || isRunning) {
+                requestAnimationFrame(runAutoMotionDetection);
+            }
+        }
+
+        function beginRunTimer() {
             if (isFinished) return;
             statusDisplay.innerText = `ממתין לרוכב ${currentRider} מתוך ${totalRiders}...`;
             canvas.width = video.videoWidth || 300;
@@ -305,11 +411,10 @@
             
             startTime = performance.now();
             isRunning = true;
-            isArmed = true;
-            runDetection();
+            runDetectionTimer();
         }
 
-        function runDetection() {
+        function runDetectionTimer() {
             if (!isRunning) return;
 
             const elapsed = (performance.now() - startTime) / 1000;
@@ -343,8 +448,7 @@
 
             if (diffCount > 15) {
                 isRunning = false;
-                isArmed = false;
-                playBeep(500, 0.5); // ביפ סיום ריצה
+                playBeep(500, 0.5);
                 
                 let sessionName = document.getElementById('sessionName').value || "סשן";
                 let recordName = `${sessionName} (רוכב ${currentRider})`;
@@ -358,14 +462,13 @@
                     let gapCounter = gapSeconds;
                     let gapTimer = setInterval(() => {
                         gapCounter--;
-                        // 3 שניות אחרונות בהפסקה בין רוכבים - ביפים חזקים
                         if (gapCounter <= 3 && gapCounter > 0) {
                             playBeep(800, 0.25);
                         }
                         if (gapCounter <= 0) {
                             clearInterval(gapTimer);
-                            playBeep(1200, 0.5); // ביפ פתיחה חזק לרוכב הבא
-                            if (!isFinished) beginRun();
+                            playBeep(1200, 0.5);
+                            if (!isFinished) beginRunTimer();
                         }
                     }, 1000);
                 } else {
@@ -376,7 +479,7 @@
             }
 
             lastFrameData = currentData;
-            requestAnimationFrame(runDetection);
+            requestAnimationFrame(runDetectionTimer);
         }
 
         function saveResult(session, time) {
@@ -407,10 +510,11 @@
 
         function resetTimer() {
             isRunning = false;
-            isArmed = false;
-            isFinished = true;
+            isWaitingForStartMotion = false;
+            isFinished = false;
             currentRider = 1;
             if (countdownTimer) clearInterval(countdownTimer);
+            if (nextRiderTimeout) clearTimeout(nextRiderTimeout);
             timerDisplay.innerText = "00.000";
             statusDisplay.innerText = "מוכן להתחלה";
             drawPreview();
