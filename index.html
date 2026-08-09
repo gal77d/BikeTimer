@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Bike Timer Pro - Live After Finish</title>
+    <title>Bike Timer Pro - Freeze on Finish</title>
     <style>
         body { background: #121212; color: white; font-family: sans-serif; text-align: center; padding: 15px; }
         #timer { font-size: 3.5rem; color: #00ffcc; }
@@ -21,8 +21,8 @@
     <input type="text" id="sessionName" placeholder="שם הסשן (למשל: ירידה צפונית)">
     
     <div class="crop-controls">
-        <label>חיתוך צדדים (רוחב): <input type="range" id="cropX" min="5" max="45" value="25" oninput="if(!isRunning) drawPreview()"></label><br>
-        <label>חיתוך מעלה/מטה (גובה): <input type="range" id="cropY" min="5" max="45" value="25" oninput="if(!isRunning) drawPreview()"></label>
+        <label>חיתוך צדדים (רוחב): <input type="range" id="cropX" min="5" max="45" value="25" oninput="if(!isRunning && !isFinished) drawPreview()"></label><br>
+        <label>חיתוך מעלה/מטה (גובה): <input type="range" id="cropY" min="5" max="45" value="25" oninput="if(!isRunning && !isFinished) drawPreview()"></label>
     </div>
 
     <div class="controls">
@@ -60,6 +60,7 @@
         let startTime = 0;
         let isRunning = false;
         let isArmed = false;
+        let isFinished = false;
         let lastFrameData = null;
         let countdownTimer = null;
 
@@ -84,10 +85,10 @@
             .then(stream => { video.srcObject = stream; })
             .catch(err => { statusDisplay.innerText = "שגיאה בגישה למצלמה!"; });
 
-        // הצגת תצוגה חיפוש/חיתוך רציפה כשלא בריצה
         function drawLiveFeed() {
             if (!video.videoWidth) return;
-            if (!isRunning && !isArmed) {
+            // מציג לייב רק כשלא בריצה וגם לא סיים את הסשן
+            if (!isRunning && !isArmed && !isFinished) {
                 drawPreview();
             }
             requestAnimationFrame(drawLiveFeed);
@@ -110,7 +111,7 @@
         }
 
         function startCountdown() {
-            if (isRunning || isArmed) return;
+            if (isRunning || isArmed || isFinished) return;
             
             let delay = parseInt(document.getElementById('delaySelect').value);
             let session = document.getElementById('sessionName').value || "סשן ללא שם";
@@ -178,8 +179,10 @@
             }
 
             if (diffCount > 15) {
+                // עצירה והקפאה על הפריים שבו זוהתה החצייה
                 isRunning = false;
                 isArmed = false;
+                isFinished = true; // מסמן שהסשן הסתיים והמסך קפוא
                 playBeep(440, 0.5);
                 statusDisplay.innerText = "הושלם בהצלחה!";
                 saveResult(session, timerDisplay.innerText);
@@ -198,9 +201,11 @@
         function resetTimer() {
             isRunning = false;
             isArmed = false;
+            isFinished = false; // משחרר את הקפאת המסך חזרה ללייב
             if (countdownTimer) clearInterval(countdownTimer);
             timerDisplay.innerText = "00.000";
             statusDisplay.innerText = "מוכן להתחלה";
+            drawPreview();
         }
     </script>
 </body>
