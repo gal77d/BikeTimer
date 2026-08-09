@@ -3,131 +3,165 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>שער סיום - טיימר אופניים</title>
+    <title>Bike Timer Pro</title>
     <style>
-        body { background: #121212; color: #fff; font-family: sans-serif; text-align: center; margin: 0; padding: 20px; }
-        #video-container { position: relative; width: 100%; max-width: 600px; margin: 0 auto; border-radius: 12px; overflow: hidden; border: 3px solid #333; }
-        video, canvas { width: 100%; display: block; }
-        canvas { position: absolute; top: 0; left: 0; pointer-events: none; }
-        #timer { font-size: 4rem; font-weight: bold; color: #00ffcc; margin: 20px 0; font-family: monospace; }
-        .btn { background: #ff4757; color: white; border: none; padding: 15px 30px; font-size: 1.2rem; font-weight: bold; border-radius: 8px; cursor: pointer; margin: 10px; }
-        .btn-start { background: #2ed573; }
-        #status { font-size: 1.1rem; color: #aaa; margin-bottom: 15px; }
+        body {
+            margin: 0;
+            background-color: #121212;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #timer {
+            font-size: 4rem;
+            font-weight: bold;
+            color: #00ffcc;
+            margin: 10px 0;
+        }
+        #status {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            color: #ffaa00;
+        }
+        .controls {
+            margin-bottom: 15px;
+        }
+        button, select {
+            background-color: #00ffcc;
+            color: #121212;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        select {
+            background-color: #ffffff;
+        }
+        video {
+            display: none;
+        }
+        canvas {
+            width: 80%;
+            max-width: 400px;
+            border: 3px solid #333;
+            border-radius: 10px;
+        }
     </style>
 </head>
 <body>
 
-    <h2>שער סיום אוטומטי</h2>
-    <div id="status">מצב: ממתין להפעלה</div>
+    <h1>מדידת זמן - אופני הרים</h1>
+    
+    <div class="controls">
+        <label for="delaySelect">השהיית התחלה:</label>
+        <select id="delaySelect">
+            <option value="5">5 שניות</option>
+            <option value="10" selected>10 שניות</option>
+            <option value="15">15 שניות</option>
+            <option value="20">20 שניות</option>
+            <option value="30">30 שניות</option>
+        </select>
+        <br><br>
+        <button onclick="startCountdown()">הפעל טיימר</button>
+        <button onclick="resetTimer()">איפוס</button>
+    </div>
+
+    <div id="status">מוכן להתחלה</div>
     <div id="timer">00.000</div>
 
-    <div>
-        <button class="btn btn-start" onclick="startTimer()">התחל טיימר (3 שניות עיכוב)</button>
-        <button class="btn" onclick="resetTimer()">איפוס</button>
-    </div>
-
-    <div id="video-container">
-        <video id="webcam" autoplay playsinline muted></video>
-        <canvas id="canvas"></canvas>
-    </div>
+    <video id="webcam" autoplay playsinline></video>
+    <canvas id="canvas"></canvas>
 
     <script>
         const video = document.getElementById('webcam');
         const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const ctx = canvas.getContext('2d', {willReadFrequently: true});
         const timerDisplay = document.getElementById('timer');
         const statusDisplay = document.getElementById('status');
+        const delaySelect = document.getElementById('delaySelect');
 
-        let startTime = null;
-        let timerInterval = null;
+        let startTime = 0;
         let isRunning = false;
         let isArmed = false;
         let lastFrameData = null;
+        let countdownActive = false;
 
-        // הפעלת המצלמה במחשב/טלפון
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
             .then(stream => { video.srcObject = stream; })
-            .catch(err => { alert("שגיאה בגישה למצלמה: " + err); });
+            .catch(err => { statusDisplay.innerText = "שגיאה בגישה למצלמה!"; });
 
-        function startTimer() {
-            statusDisplay.innerText = "התרחק מהמסלך! המערכת תדרך בעוד 3 שניות...";
-            statusDisplay.style.color = "#ffa502";
+        function startCountdown() {
+            if (isRunning || countdownActive) return;
             
-            setTimeout(() => {
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                
-                // צילום פריים ראשוני לבדיקת הבדלים (רקע נקי)
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                lastFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            let delay = parseInt(delaySelect.value);
+            countdownActive = true;
+            resetTimer();
 
-                isArmed = true;
-                isRunning = true;
-                startTime = performance.now();
-                statusDisplay.innerText = "מערכת דרוכה! מחכה לגלגל...";
-                statusDisplay.style.color = "#2ed573";
+            let countdownTimer = setInterval(() => {
+                if (delay > 0) {
+                    statusDisplay.innerText = `מתחיל בעוד: ${delay} שניות... רץ להתארגן!`;
+                    delay--;
+                } else {
+                    clearInterval(countdownTimer);
+                    countdownActive = false;
+                    beginRun();
+                }
+            }, 1000);
+        }
 
-                runDetection();
-            }, 3000); // 3 שניות להתארגן לפני שהטיימר מתחיל לרוץ באמת
+        function beginRun() {
+            statusDisplay.innerText = "ממתין לתנועה בקו הסיום!";
+            statusDisplay.style.color = "#00ffcc";
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            lastFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            startTime = performance.now();
+            isArmed = true;
+            isRunning = true;
+            runDetection();
         }
 
         function runDetection() {
             if (!isRunning) return;
-
-            // עדכון השעון בזמן אמת
-            let elapsedTime = (performance.now() - startTime) / 1000;
-            timerDisplay.innerText = elapsedTime.toFixed(3);
-
-            // לכידת הפריים הנוכחי
+            const elapsed = (performance.now() - startTime) / 1000;
+            timerDisplay.innerText = elapsed.toFixed(3);
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             let currentFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-            // בדיקת שינויים פיקסל-אחרי-פיקסל (זיהוי תנועה בקו הסיום)
-            if (checkMotion(lastFrameData.data, currentFrameData.data)) {
-                // זיהוי תנועה! עצרנו!
+            if (isArmed && checkMotion(lastFrameData, currentFrameData)) {
                 isRunning = false;
                 isArmed = false;
-                statusDisplay.innerText = "זהה מעבר! הזמן נעצר.";
-                statusDisplay.style.color = "#ff4757";
-                return;
+                statusDisplay.innerText = "הושלם בהצלחה!";
             }
-
             lastFrameData = currentFrameData;
             requestAnimationFrame(runDetection);
         }
 
         function checkMotion(data1, data2) {
             let diffCount = 0;
-            // נבדוק שינויים רק בחלק המרכזי של המסך (שם נמצא המסלול)
-            let startX = Math.floor(canvas.width * 0.3);
-            let endX = Math.floor(canvas.width * 0.7);
-            let startY = Math.floor(canvas.height * 0.3);
-            let endY = Math.floor(canvas.height * 0.7);
-
-            for (let y = startY; y < endY; y += 10) { // דגימה כל 10 פיקסלים למהירות
-                for (let x = startX; x < endX; x += 10) {
-                    let i = (y * canvas.width + x) * 4;
-                    let rDiff = Math.abs(data1[i] - data2[i]);
-                    let gDiff = Math.abs(data1[i+1] - data2[i+1]);
-                    let bDiff = Math.abs(data1[i+2] - data2[i+2]);
-
-                    if ((rDiff + gDiff + bDiff) > 100) { // סף רגישות לשינוי צבע/תאורה
-                        diffCount++;
-                        if (diffCount > 15) return true; // מספיק שינוי במספיק פיקסלים כדי להבין שגלגל עבר
-                    }
+            const d1 = data1.data, d2 = data2.data;
+            for (let i = 0; i < d1.length; i += 40) {
+                if (Math.abs(d1[i] - d2[i]) > 50 || Math.abs(d1[i+1] - d2[i+1]) > 50 || Math.abs(d1[i+2] - d2[i+2]) > 50) {
+                    diffCount++;
                 }
             }
-            return false;
+            return diffCount > 100;
         }
 
         function resetTimer() {
             isRunning = false;
             isArmed = false;
+            countdownActive = false;
             timerDisplay.innerText = "00.000";
-            statusDisplay.innerText = "מצב: ממתין להפעלה";
-            statusDisplay.style.color = "#aaa";
+            statusDisplay.innerText = "מוכן להתחלה";
         }
     </script>
-
 </body>
 </html>
