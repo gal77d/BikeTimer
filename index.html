@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bike Timer Pro - Direction Fix</title>
+    <title>Bike Timer Pro - Multi Rider</title>
     <style>
         body { 
             background: #0f1115; 
@@ -141,11 +141,13 @@
     <div class="card">
         <div style="display: flex; gap: 10px;">
             <div style="flex: 1; text-align: right;">
-                <label style="font-size: 0.8rem;">כיוון תנועה:</label>
-                <select id="directionSelect">
-                    <option value="any" selected>כל כיוון</option>
-                    <option value="l2r">משמאל לימין ➔</option>
-                    <option value="r2l">מימין לשמאל ⬅</option>
+                <label style="font-size: 0.8rem;">כמות רוכבים:</label>
+                <select id="ridersCount">
+                    <option value="1" selected>רוכב 1</option>
+                    <option value="2">2 רוכבים</option>
+                    <option value="3">3 רוכבים</option>
+                    <option value="4">4 רוכבים</option>
+                    <option value="5">5 רוכבים</option>
                 </select>
             </div>
             <div style="flex: 1; text-align: right;">
@@ -173,7 +175,7 @@
     <canvas id="canvas"></canvas>
 
     <div id="leaderboard" style="margin-top: 15px;">
-        <h3>תוצאות שמורות</h3>
+        <h3>תוצאות הסשן הנוכחי</h3>
         <ul id="resultsList"></ul>
         <button class="clear-btn" onclick="clearHistory()">מחק היסטוריה</button>
     </div>
@@ -192,7 +194,8 @@
         let isFinished = false;
         let lastFrameData = null;
         let countdownTimer = null;
-        let motionStep = 0; // משמש למעקב אחרי שלבי המעבר בכיוון
+        let currentRider = 1;
+        let totalRiders = 1;
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playBeep(freq, duration) {
@@ -241,29 +244,30 @@
         }
 
         function startCountdown() {
-            if (isRunning || isArmed || isFinished) return;
+            if (isRunning || isArmed) return;
             
             let delay = parseInt(document.getElementById('delaySelect').value);
-            let session = document.getElementById('sessionName').value || "סשן ללא שם";
+            totalRiders = parseInt(document.getElementById('ridersCount').value);
+            currentRider = 1;
             
             if (countdownTimer) clearInterval(countdownTimer);
 
-            statusDisplay.innerText = `מתחיל בעוד: ${delay} שניות...`;
+            statusDisplay.innerText = `הכנה לרוכב 1 - מתחיל בעוד: ${delay} שניות...`;
             
             countdownTimer = setInterval(() => {
                 delay--;
                 if (delay > 0) {
-                    statusDisplay.innerText = `מתחיל בעוד: ${delay} שניות...`;
+                    statusDisplay.innerText = `הכנה לרוכב 1 - מתחיל בעוד: ${delay} שניות...`;
                 } else {
                     clearInterval(countdownTimer);
                     playBeep(880, 0.2);
-                    beginRun(session);
+                    beginRun();
                 }
             }, 1000);
         }
 
-        function beginRun(session) {
-            statusDisplay.innerText = "ממתין לחצייה במסלול...";
+        function beginRun() {
+            statusDisplay.innerText = `ממתין לרוכב ${currentRider} מתוך ${totalRiders}...`;
             canvas.width = video.videoWidth || 300;
             canvas.height = video.videoHeight || 150;
 
@@ -273,11 +277,11 @@
             startTime = performance.now();
             isRunning = true;
             isArmed = true;
-            motionStep = 0;
-            runDetection(session);
+            isFinished = false;
+            runDetection();
         }
 
-        function runDetection(session) {
+        function runDetection() {
             if (!isRunning) return;
 
             const elapsed = (performance.now() - startTime) / 1000;
@@ -294,9 +298,7 @@
             let startY = Math.floor(canvas.height * cropY);
             let endY = Math.floor(canvas.height * (1 - cropY));
 
-            let leftDiff = 0;
-            let rightDiff = 0;
-            let midX = (startX + endX) / 2;
+            let diffCount = 0;
 
             for (let y = startY; y < endY; y += 10) {
                 for (let x = startX; x < endX; x += 10) {
@@ -305,50 +307,38 @@
                     let gDiff = Math.abs(currentData.data[i+1] - lastFrameData.data[i+1]);
                     let bDiff = Math.abs(currentData.data[i+2] - lastFrameData.data[i+2]);
 
-                    if ((rDiff + gDiff + bDiff) > 100) {
-                        if (x < midX) leftDiff++;
-                        else rightDiff++;
+                    if ((rDiff + gDiff + bDiff) > 80) {
+                        diffCount++;
                     }
                 }
             }
 
-            let directionMode = document.getElementById('directionSelect').value;
-            let triggerFinished = false;
-
-            if (directionMode === "any") {
-                if ((leftDiff + rightDiff) > 15) triggerFinished = true;
-            } else if (directionMode === "l2r") {
-                // שלב 1: זיהוי תנועה בצד שמאל
-                if (motionStep === 0 && leftDiff > 10) {
-                    motionStep = 1;
-                }
-                // שלב 2: זיהוי המשך תנועה בצד ימין
-                else if (motionStep === 1 && rightDiff > 10) {
-                    triggerFinished = true;
-                }
-            } else if (directionMode === "r2l") {
-                // שלב 1: זיהוי תנועה בצד ימין
-                if (motionStep === 0 && rightDiff > 10) {
-                    motionStep = 1;
-                }
-                // שלב 2: זיהוי המשך תנועה בצד שמאל
-                else if (motionStep === 1 && leftDiff > 10) {
-                    triggerFinished = true;
-                }
-            }
-
-            if (triggerFinished) {
+            if (diffCount > 15) {
                 isRunning = false;
                 isArmed = false;
-                isFinished = true;
                 playBeep(440, 0.5);
-                statusDisplay.innerText = "הושלם בהצלחה!";
-                saveResult(session, timerDisplay.innerText);
+                
+                let sessionName = document.getElementById('sessionName').value || "סשן";
+                let recordName = `${sessionName} (רוכב ${currentRider})`;
+                saveResult(recordName, timerDisplay.innerText);
+
+                if (currentRider < totalRiders) {
+                    currentRider++;
+                    statusDisplay.innerText = `רוכב ${currentRider - 1} סיים! מתכונן לרוכב ${currentRider}...`;
+                    
+                    // המתנה של 3 שניות מעבר בין רוכבים ואז התחלה מחדש אוטומטית
+                    setTimeout(() => {
+                        if (!isFinished) beginRun();
+                    }, 3000);
+                } else {
+                    isFinished = true;
+                    statusDisplay.innerText = "כל הרוכבים סיימו בהצלחה!";
+                }
                 return;
             }
 
             lastFrameData = currentData;
-            requestAnimationFrame(() => runDetection(session));
+            requestAnimationFrame(() => runDetection);
         }
 
         function saveResult(session, time) {
@@ -380,8 +370,8 @@
         function resetTimer() {
             isRunning = false;
             isArmed = false;
-            isFinished = false;
-            motionStep = 0;
+            isFinished = true;
+            currentRider = 1;
             if (countdownTimer) clearInterval(countdownTimer);
             timerDisplay.innerText = "00.000";
             statusDisplay.innerText = "מוכן להתחלה";
