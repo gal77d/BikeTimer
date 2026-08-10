@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bike Timer Pro - Original Detection</title>
+    <title>Bike Timer Pro</title>
     <style>
         body { 
             background: #0f1115; 
@@ -486,6 +486,7 @@
                     requestAnimationFrame(runAutoMotionDetection);
                     return;
                 } else if (isRunning) {
+                    // כאן חוק ה-3 שניות פועל בעצירה אך ורק במצב אוטומטי
                     const elapsedCheck = (performance.now() - startTime) / 1000;
                     if (elapsedCheck < 3) {
                         lastFrameData = currentData;
@@ -540,12 +541,6 @@
             if (isRunning) {
                 const elapsed = (performance.now() - startTime) / 1000;
                 timerDisplay.innerText = elapsed.toFixed(3);
-                
-                if (elapsed < 7) {
-                    lastFrameData = currentData;
-                    requestAnimationFrame(runAutoMotionDetection);
-                    return;
-                }
             }
 
             lastFrameData = currentData;
@@ -597,7 +592,8 @@
                 }
             }
 
-            if (diffCount > 15 && elapsed >= 3) {
+            // במצב עם דילאי רגיל (לא אוטומטי), אין שום הגבלת 3 שניות בעצירה - זה עוצר מיד
+            if (diffCount > 15) {
                 isRunning = false;
                 playBeep(500, 0.5);
                 
