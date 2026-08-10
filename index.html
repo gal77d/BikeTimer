@@ -245,6 +245,18 @@
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
+        function speakText(text) {
+            try {
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.lang = 'he-IL';
+                    utterance.rate = 1.1;
+                    window.speechSynthesis.speak(utterance);
+                }
+            } catch(e) {}
+        }
+
         function playCountdownBeep(timeLeft) {
             try {
                 if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -266,10 +278,12 @@
                     freq = 950;
                     duration = 0.2;
                     volume = 0.6;
+                    speakText(timeLeft.toString());
                 } else if (timeLeft === 1) {
                     freq = 1150;
                     duration = 0.25;
                     volume = 0.7;
+                    speakText("אחד");
                 }
 
                 osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
@@ -492,6 +506,7 @@
                     } else {
                         clearInterval(countdownTimer);
                         playFinalBeep();
+                        speakText("צא לדרך!");
                         handleTrackDelay(activateMotionSensor);
                     }
                 }, 1000);
@@ -508,6 +523,7 @@
                     } else {
                         clearInterval(countdownTimer);
                         playFinalBeep();
+                        speakText("צא לדרך!");
                         handleTrackDelay(beginRunTimer);
                     }
                 }, 1000);
@@ -527,6 +543,7 @@
                     } else {
                         clearInterval(trackTimer);
                         playFinalBeep();
+                        speakText("צא!");
                         onCompleteCallback();
                     }
                 }, 1000);
@@ -578,6 +595,7 @@
                     startTime = performance.now();
                     isRunning = true;
                     statusDisplay.innerText = `רוכב ${currentRider} בדרך!`;
+                    speakText("רוכב בדרך");
                     lastFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                     requestAnimationFrame(runAutoMotionDetection);
                     return;
@@ -592,9 +610,12 @@
                     isRunning = false;
                     playFinalBeep();
                     
+                    let finalTime = timerDisplay.innerText;
+                    speakText(`רוכב ${currentRider} סיים. זמן: ${finalTime} שניות`);
+
                     let sessionName = document.getElementById('sessionName').value || "סשן";
                     let recordName = `${sessionName} (רוכב ${currentRider})`;
-                    saveResult(recordName, timerDisplay.innerText);
+                    saveResult(recordName, finalTime);
 
                     if (currentRider < totalRiders) {
                         currentRider++;
@@ -625,6 +646,7 @@
                     } else {
                         isFinished = true;
                         statusDisplay.innerText = "כל הרוכבים סיימו בהצלחה!";
+                        speakText("הסשן הסתיים בהצלחה");
                     }
                     return;
                 }
@@ -694,9 +716,12 @@
                 isRunning = false;
                 playFinalBeep();
                 
+                let finalTime = timerDisplay.innerText;
+                speakText(`רוכב ${currentRider} סיים. זמן: ${finalTime} שניות`);
+
                 let sessionName = document.getElementById('sessionName').value || "סשן";
                 let recordName = `${sessionName} (רוכב ${currentRider})`;
-                saveResult(recordName, timerDisplay.innerText);
+                saveResult(recordName, finalTime);
 
                 if (currentRider < totalRiders) {
                     currentRider++;
@@ -716,6 +741,7 @@
                 } else {
                     isFinished = true;
                     statusDisplay.innerText = "כל הרוכבים סיימו בהצלחה!";
+                    speakText("הסשן הסתיים בהצלחה");
                 }
                 return;
             }
