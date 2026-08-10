@@ -227,7 +227,9 @@
 
         function calculateAirtime() {
             let airtime = landingTime - takeoffTime;
-            let estimatedDistance = airtime * 7.5;
+            
+            // נוסחה מעודכנת ומדויקת לקפיצות גדולות ומהירות בשטח
+            let estimatedDistance = airtime * 12.5;
 
             airtimeDisplay.innerText = airtime.toFixed(3) + " שניות";
             distanceDisplay.innerText = "מרחק משוער באוויר: כ-" + estimatedDistance.toFixed(1) + " מטר";
