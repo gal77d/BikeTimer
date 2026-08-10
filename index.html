@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bike Timer Pro - Advanced Beeps & Track Delay</title>
+    <title>Bike Timer Pro - Custom Track Delays</title>
     <style>
         body { 
             background: #0f1115; 
@@ -198,7 +198,9 @@
                 <label style="font-size: 0.8rem;">דילאי הגעה למסלול:</label>
                 <select id="trackDelaySelect">
                     <option value="0" selected>ללא דילאי הגעה</option>
-                    <option value="3">3 שניות נוספות להגעה</option>
+                    <option value="1">שנייה אחת</option>
+                    <option value="2">שתי שניות</option>
+                    <option value="3">שלוש שניות</option>
                 </select>
             </div>
         </div>
@@ -243,7 +245,6 @@
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
-        // מערכת ביפים מדרגת לפי בקשתך
         function playCountdownBeep(timeLeft) {
             try {
                 if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -258,17 +259,14 @@
                 let volume = 0.4;
 
                 if (timeLeft > 3 && timeLeft <= 10) {
-                    // מ-10 עד 4 שניות: ביפים רגילים
                     freq = 700;
                     duration = 0.15;
                     volume = 0.4;
                 } else if (timeLeft === 3 || timeLeft === 2) {
-                    // 3 ו-2 שניות: ביפים שונים (גבוהים יותר)
                     freq = 950;
                     duration = 0.2;
                     volume = 0.6;
                 } else if (timeLeft === 1) {
-                    // שנייה אחרונה: ביפ שונה
                     freq = 1150;
                     duration = 0.25;
                     volume = 0.7;
@@ -282,22 +280,21 @@
             } catch(e) {}
         }
 
-        // ביפ סיום / התחלה חזק ועוצמתי במיוחד
         function playFinalBeep() {
             try {
                 if (audioCtx.state === 'suspended') audioCtx.resume();
                 const osc = audioCtx.createOscillator();
                 const gainNode = audioCtx.createGain();
                 
-                osc.type = 'sawtooth'; // צליל עמוק וחזק יותר
+                osc.type = 'sawtooth';
                 osc.frequency.setValueAtTime(1500, audioCtx.currentTime);
-                gainNode.gain.setValueAtTime(1.0, audioCtx.currentTime); // עוצמה מקסימלית
+                gainNode.gain.setValueAtTime(1.0, audioCtx.currentTime);
                 
                 osc.connect(gainNode);
                 gainNode.connect(audioCtx.destination);
                 
                 osc.start();
-                osc.stop(audioCtx.currentTime + 0.6); // ארוך וחזק
+                osc.stop(audioCtx.currentTime + 0.6);
             } catch(e) {}
         }
 
@@ -466,26 +463,7 @@
                     } else {
                         clearInterval(countdownTimer);
                         playFinalBeep();
-                        
-                        // בדיקה האם יש דילאי הגעה נוסף למסלול
-                        let trackDelay = parseInt(document.getElementById('trackDelaySelect').value);
-                        if (trackDelay > 0) {
-                            let trackCounter = trackDelay;
-                            statusDisplay.innerText = `צא למסלול! זינוק בעוד ${trackCounter} שניות...`;
-                            let trackTimer = setInterval(() => {
-                                trackCounter--;
-                                if (trackCounter > 0) {
-                                    playCountdownBeep(trackCounter);
-                                    statusDisplay.innerText = `צא למסלול! זינוק בעוד ${trackCounter} שניות...`;
-                                } else {
-                                    clearInterval(trackTimer);
-                                    playFinalBeep();
-                                    activateMotionSensor();
-                                }
-                            }, 1000);
-                        } else {
-                            activateMotionSensor();
-                        }
+                        handleTrackDelay(activateMotionSensor);
                     }
                 }, 1000);
             } else {
@@ -501,9 +479,30 @@
                     } else {
                         clearInterval(countdownTimer);
                         playFinalBeep();
-                        beginRunTimer();
+                        handleTrackDelay(beginRunTimer);
                     }
                 }, 1000);
+            }
+        }
+
+        function handleTrackDelay(onCompleteCallback) {
+            let trackDelay = parseInt(document.getElementById('trackDelaySelect').value);
+            if (trackDelay > 0) {
+                let trackCounter = trackDelay;
+                statusDisplay.innerText = `צא למסלול! זינוק בעוד ${trackCounter} שניות...`;
+                let trackTimer = setInterval(() => {
+                    trackCounter--;
+                    if (trackCounter > 0) {
+                        playCountdownBeep(trackCounter);
+                        statusDisplay.innerText = `צא למסלול! זינוק בעוד ${trackCounter} שניות...`;
+                    } else {
+                        clearInterval(trackTimer);
+                        playFinalBeep();
+                        onCompleteCallback();
+                    }
+                }, 1000);
+            } else {
+                onCompleteCallback();
             }
         }
 
@@ -589,7 +588,7 @@
                                     if (nextPrep <= 0) {
                                         clearInterval(nextTimer);
                                         playFinalBeep();
-                                        activateMotionSensor();
+                                        handleTrackDelay(activateMotionSensor);
                                     }
                                 }, 1000);
                             }
@@ -682,7 +681,7 @@
                         if (gapCounter <= 0) {
                             clearInterval(gapTimer);
                             playFinalBeep();
-                            if (!isFinished) beginRunTimer();
+                            if (!isFinished) handleTrackDelay(beginRunTimer);
                         }
                     }, 1000);
                 } else {
