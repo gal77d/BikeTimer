@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bike Timer Pro - 7s Prep Delay</title>
+    <title>Bike Timer Pro - Touch Crop</title>
     <style>
         body { 
             background: #0f1115; 
@@ -41,14 +41,6 @@
             font-size: 1rem;
             box-sizing: border-box;
         }
-
-        .range-group {
-            text-align: right;
-            font-size: 0.85rem;
-            margin-bottom: 8px;
-        }
-
-        .range-group input { width: 100%; accent-color: #00ffcc; }
 
         .big-btn-container {
             display: flex;
@@ -116,7 +108,15 @@
         .clear-btn { background: #333d4f; color: #ccc; font-size: 0.8rem; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; }
 
         video { display: none; }
-        canvas { width: 90%; max-width: 380px; border: 3px solid #00ffcc; border-radius: 12px; background: #000; margin-top: 5px; }
+        canvas { 
+            width: 90%; 
+            max-width: 380px; 
+            border: 3px solid #00ffcc; 
+            border-radius: 12px; 
+            background: #000; 
+            margin-top: 5px; 
+            touch-action: none; /* מונע גלילה בטעות כשחותכים את התמונה */
+        }
     </style>
 </head>
 <body>
@@ -127,15 +127,9 @@
         <input type="text" id="sessionName" placeholder="שם הסשן (למשל: ירידה צפונית)">
     </div>
 
-    <div class="card">
-        <div class="range-group">
-            <label>חיתוך צדדים (רוחב):</label>
-            <input type="range" id="cropX" min="5" max="45" value="25" oninput="if(!isRunning && !isFinished) drawPreview()">
-        </div>
-        <div class="range-group">
-            <label>חיתוך מעלה/מטה (גובה):</label>
-            <input type="range" id="cropY" min="5" max="45" value="25" oninput="if(!isRunning && !isFinished) drawPreview()">
-        </div>
+    <!-- כרטיסיית הסבר לחיתוך במקום הסליידרים -->
+    <div class="card" style="font-size: 0.85rem; color: #aaa; text-align: center;">
+        💡 <b>איך מסמנים אזור?</b> גרור עם האצבע ישירות על המסך את הקצוות או הפינות של המסגרת האדומה (כמו בצילום מסך).
     </div>
 
     <div class="card">
@@ -211,6 +205,10 @@
         let currentRider = 1;
         let totalRiders = 1;
 
+        // מיקומי החיתוך החדשים (באחוזים מ-0 עד 1) - במקום הסליידרים
+        let cropInfo = { left: 0.25, right: 0.75, top: 0.25, bottom: 0.75 };
+        let activeDrag = null;
+
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
         function playBeep(freq, duration) {
@@ -244,6 +242,94 @@
             .then(stream => { video.srcObject = stream; })
             .catch(err => { statusDisplay.innerText = "שגיאה בגישה למצלמה!"; });
 
+        // פונקציות מסך מגע לחיתוך חופשי
+        function getPointerPos(e) {
+            let rect = canvas.getBoundingClientRect();
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            let scaleX = canvas.width / rect.width;
+            let scaleY = canvas.height / rect.height;
+            return {
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
+            };
+        }
+
+        canvas.addEventListener('mousedown', startDrag);
+        canvas.addEventListener('touchstart', startDrag, {passive: false});
+        window.addEventListener('mousemove', onDrag);
+        window.addEventListener('touchmove', onDrag, {passive: false});
+        window.addEventListener('mouseup', endDrag);
+        window.addEventListener('touchend', endDrag);
+
+        function startDrag(e) {
+            if (isRunning || isWaitingForStartMotion) return; // אי אפשר לערוך בזמן מדידה
+            let pos = getPointerPos(e);
+            
+            let sx = canvas.width * cropInfo.left;
+            let sy = canvas.height * cropInfo.top;
+            let ex = canvas.width * cropInfo.right;
+            let ey = canvas.height * cropInfo.bottom;
+
+            let touchMargin = 30; // גודל אזור התפיסה של האצבע
+
+            activeDrag = { left: false, right: false, top: false, bottom: false, move: false };
+            let dragging = false;
+
+            // בודק אם תפסנו את אחד הקצוות
+            if (Math.abs(pos.x - sx) < touchMargin && pos.y > sy - touchMargin && pos.y < ey + touchMargin) { activeDrag.left = true; dragging = true; }
+            if (Math.abs(pos.x - ex) < touchMargin && pos.y > sy - touchMargin && pos.y < ey + touchMargin) { activeDrag.right = true; dragging = true; }
+            if (Math.abs(pos.y - sy) < touchMargin && pos.x > sx - touchMargin && pos.x < ex + touchMargin) { activeDrag.top = true; dragging = true; }
+            if (Math.abs(pos.y - ey) < touchMargin && pos.x > sx - touchMargin && pos.x < ex + touchMargin) { activeDrag.bottom = true; dragging = true; }
+
+            // גרירת כל המסגרת אם נוגעים באמצע
+            if (!dragging && pos.x > sx + touchMargin && pos.x < ex - touchMargin && pos.y > sy + touchMargin && pos.y < ey - touchMargin) {
+                activeDrag.move = true;
+                activeDrag.startX = pos.x;
+                activeDrag.startY = pos.y;
+                activeDrag.origLeft = cropInfo.left;
+                activeDrag.origRight = cropInfo.right;
+                activeDrag.origTop = cropInfo.top;
+                activeDrag.origBottom = cropInfo.bottom;
+                dragging = true;
+            }
+
+            if (dragging && e.type === 'touchstart') e.preventDefault();
+            if (!dragging) activeDrag = null;
+        }
+
+        function onDrag(e) {
+            if (!activeDrag) return;
+            if (e.type === 'touchmove') e.preventDefault();
+            
+            let pos = getPointerPos(e);
+            let nx = pos.x / canvas.width;
+            let ny = pos.y / canvas.height;
+            const MIN_SIZE = 0.1; // אי אפשר להקטין יותר מדי
+
+            if (activeDrag.move) {
+                let dx = nx - (activeDrag.startX / canvas.width);
+                let dy = ny - (activeDrag.startY / canvas.height);
+                
+                let width = activeDrag.origRight - activeDrag.origLeft;
+                let height = activeDrag.origBottom - activeDrag.origTop;
+
+                cropInfo.left = Math.max(0, Math.min(activeDrag.origLeft + dx, 1 - width));
+                cropInfo.right = cropInfo.left + width;
+                cropInfo.top = Math.max(0, Math.min(activeDrag.origTop + dy, 1 - height));
+                cropInfo.bottom = cropInfo.top + height;
+            } else {
+                if (activeDrag.left)   cropInfo.left = Math.max(0, Math.min(nx, cropInfo.right - MIN_SIZE));
+                if (activeDrag.right)  cropInfo.right = Math.min(1, Math.max(nx, cropInfo.left + MIN_SIZE));
+                if (activeDrag.top)    cropInfo.top = Math.max(0, Math.min(ny, cropInfo.bottom - MIN_SIZE));
+                if (activeDrag.bottom) cropInfo.bottom = Math.min(1, Math.max(ny, cropInfo.top + MIN_SIZE));
+            }
+        }
+
+        function endDrag() {
+            activeDrag = null;
+        }
+
         function drawLiveFeed() {
             if (!video.videoWidth) return;
             if (!isRunning && !isWaitingForStartMotion && !isFinished) {
@@ -254,17 +340,33 @@
 
         function drawPreview() {
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            let cropX = parseInt(document.getElementById('cropX').value) / 100;
-            let cropY = parseInt(document.getElementById('cropY').value) / 100;
 
-            let sw = canvas.width * (1 - (cropX * 2));
-            let sh = canvas.height * (1 - (cropY * 2));
-            let sx = canvas.width * cropX;
-            let sy = canvas.height * cropY;
+            let sx = canvas.width * cropInfo.left;
+            let sy = canvas.height * cropInfo.top;
+            let sw = canvas.width * (cropInfo.right - cropInfo.left);
+            let sh = canvas.height * (cropInfo.bottom - cropInfo.top);
 
+            // עושה הצללה לאזור מחוץ לחיתוך (כמו בצילום מסך)
+            ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+            ctx.fillRect(0, 0, canvas.width, sy); 
+            ctx.fillRect(0, sy + sh, canvas.width, canvas.height - sy - sh); 
+            ctx.fillRect(0, sy, sx, sh); 
+            ctx.fillRect(sx + sw, sy, canvas.width - sx - sw, sh);
+
+            // מסגרת החיתוך האדומה
             ctx.strokeStyle = "#ff4444";
-            ctx.lineWidth = 4;
+            ctx.lineWidth = 3;
             ctx.strokeRect(sx, sy, sw, sh);
+
+            // ידיות לבנות קטנות שיעזרו לראות מאיפה גוררים
+            if (!isRunning && !isWaitingForStartMotion && !isFinished) {
+                ctx.fillStyle = "#ffffff";
+                let hs = 14; 
+                ctx.fillRect(sx + sw/2 - hs/2, sy - hs/2, hs, hs); // למעלה
+                ctx.fillRect(sx + sw/2 - hs/2, sy + sh - hs/2, hs, hs); // למטה
+                ctx.fillRect(sx + sw - hs/2, sy + sh/2 - hs/2, hs, hs); // ימין
+                ctx.fillRect(sx - hs/2, sy + sh/2 - hs/2, hs, hs); // שמאל
+            }
         }
 
         function startSession() {
@@ -279,7 +381,6 @@
             if (nextRiderTimeout) clearTimeout(nextRiderTimeout);
 
             if (delaySetting === "auto_motion") {
-                // דילאי התארגנות של 7 שניות לפני שהמערכת נדרכת במצב אוטומטי
                 let prepDelay = 7;
                 statusDisplay.innerText = `התארגנות רוכב ${currentRider} — מתחיל בעוד ${prepDelay} שניות...`;
                 
@@ -293,7 +394,7 @@
                         statusDisplay.innerText = `התארגנות רוכב ${currentRider} — מתחיל בעוד ${prepDelay} שניות...`;
                     } else {
                         clearInterval(countdownTimer);
-                        playBeep(1200, 0.5); // ביפ פתיחה
+                        playBeep(1200, 0.5); 
                         
                         statusDisplay.innerText = `ממתין לתנועה של רוכב ${currentRider} — עבור בפריים להתחלה!`;
                         canvas.width = video.videoWidth || 300;
@@ -331,13 +432,11 @@
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             let currentData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-            let cropX = parseInt(document.getElementById('cropX').value) / 100;
-            let cropY = parseInt(document.getElementById('cropY').value) / 100;
-
-            let startX = Math.floor(canvas.width * cropX);
-            let endX = Math.floor(canvas.width * (1 - cropX));
-            let startY = Math.floor(canvas.height * cropY);
-            let endY = Math.floor(canvas.height * (1 - cropY));
+            // קריאת האזורים החדשים מתוך המסך האינטראקטיבי במקום סליידרים
+            let startX = Math.floor(canvas.width * cropInfo.left);
+            let endX = Math.floor(canvas.width * cropInfo.right);
+            let startY = Math.floor(canvas.height * cropInfo.top);
+            let endY = Math.floor(canvas.height * cropInfo.bottom);
 
             let diffCount = 0;
 
@@ -356,7 +455,6 @@
 
             if (diffCount > 15) {
                 if (isWaitingForStartMotion) {
-                    // זיהוי מעבר ראשון -> התחלת הטיימר!
                     isWaitingForStartMotion = false;
                     playBeep(1200, 0.4);
                     startTime = performance.now();
@@ -373,7 +471,6 @@
                         return;
                     }
 
-                    // זיהוי מעבר שני -> עצירת הטיימר!
                     isRunning = false;
                     playBeep(500, 0.5);
                     
@@ -395,7 +492,6 @@
                             if (gapCounter <= 0) {
                                 clearInterval(gapTimer);
                                 playBeep(1200, 0.4);
-                                // דילאי התארגנות של 7 שניות גם לפני הרוכב הבא
                                 let nextPrep = 7;
                                 statusDisplay.innerText = `התארגנות רוכב ${currentRider} — מתחיל בעוד ${nextPrep} שניות...`;
                                 
@@ -463,13 +559,11 @@
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             let currentData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-            let cropX = parseInt(document.getElementById('cropX').value) / 100;
-            let cropY = parseInt(document.getElementById('cropY').value) / 100;
-
-            let startX = Math.floor(canvas.width * cropX);
-            let endX = Math.floor(canvas.width * (1 - cropX));
-            let startY = Math.floor(canvas.height * cropY);
-            let endY = Math.floor(canvas.height * (1 - cropY));
+            // קריאת האזורים החדשים מתוך המסך האינטראקטיבי
+            let startX = Math.floor(canvas.width * cropInfo.left);
+            let endX = Math.floor(canvas.width * cropInfo.right);
+            let startY = Math.floor(canvas.height * cropInfo.top);
+            let endY = Math.floor(canvas.height * cropInfo.bottom);
 
             let diffCount = 0;
 
