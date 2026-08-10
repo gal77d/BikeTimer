@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bike Timer Pro - Voice Countdown</title>
+    <title>Bike Timer Pro - Trigger & Stop Mode</title>
     <style>
         body { 
             background: #0f1115; 
@@ -130,50 +130,31 @@
     <div class="card">
         <div class="range-group">
             <label>חיתוך צדדים (רוחב):</label>
-            <input type="range" id="cropX" min="5" max="45" value="25" oninput="if(!isRunning && !isFinished) drawPreview()">
+            <input type="range" id="cropX" min="5" max="45" value="25" oninput="if(!isWaitingForStart && !isRunning) drawPreview()">
         </div>
         <div class="range-group">
             <label>חיתוך מעלה/מטה (גובה):</label>
-            <input type="range" id="cropY" min="5" max="45" value="25" oninput="if(!isRunning && !isFinished) drawPreview()">
+            <input type="range" id="cropY" min="5" max="45" value="25" oninput="if(!isWaitingForStart && !isRunning) drawPreview()">
         </div>
     </div>
 
     <div class="card">
-        <div style="display: flex; gap: 10px;">
-            <div style="flex: 1; text-align: right;">
-                <label style="font-size: 0.8rem;">כמות רוכבים:</label>
-                <select id="ridersCount">
-                    <option value="1" selected>רוכב 1</option>
-                    <option value="2">2 רוכבים</option>
-                    <option value="3">3 רוכבים</option>
-                    <option value="4">4 רוכבים</option>
-                    <option value="5">5 רוכבים</option>
-                </select>
-            </div>
-            <div style="flex: 1; text-align: right;">
-                <label style="font-size: 0.8rem;">השהייה ראשונית:</label>
-                <select id="delaySelect">
-                    <option value="5">5 שניות</option>
-                    <option value="10" selected>10 שניות</option>
-                    <option value="15">15 שניות</option>
-                    <option value="20">20 שניות</option>
-                    <option value="30">30 שניות</option>
-                </select>
-            </div>
-        </div>
-        <div style="margin-top: 8px; text-align: right;">
-            <label style="font-size: 0.8rem;">השהייה בין רוכבים:</label>
-            <select id="gapSelect">
-                <option value="3">3 שניות</option>
-                <option value="5" selected>5 שניות</option>
-                <option value="10">10 שניות</option>
+        <div style="text-align: right;">
+            <label style="font-size: 0.8rem;">השהייה לפני תחילת מדידה (כולל דקות):</label>
+            <select id="delaySelect">
+                <option value="5">5 שניות</option>
+                <option value="10" selected>10 שניות</option>
                 <option value="15">15 שניות</option>
+                <option value="30">30 שניות</option>
+                <option value="60">דקה אחת (60 שניות)</option>
+                <option value="120">שתי דקות (120 שניות)</option>
+                <option value="180">שלוש דקות (180 שניות)</option>
             </select>
         </div>
     </div>
 
     <div class="big-btn-container">
-        <button class="action-btn" onclick="startCountdown()">התחל סשן</button>
+        <button class="action-btn" onclick="startSystem()">הפעל מערכת</button>
         <button class="reset-btn" onclick="resetTimer()">איפוס</button>
     </div>
 
@@ -198,23 +179,18 @@
         const resultsList = document.getElementById('resultsList');
         
         let startTime = 0;
-        let isRunning = false;
-        let isArmed = false;
-        let isFinished = false;
+        let isWaitingForStart = false; // ממתין לזמן או למעבר תחילת סשן
+        let isRunning = false;         // הטיימר רץ (מחכה לעצירה)
         let lastFrameData = null;
         let countdownTimer = null;
-        let currentRider = 1;
-        let totalRiders = 1;
 
-        // פונקציית דיבור קולית בעברית
         function speakText(text) {
             try {
                 if ('speechSynthesis' in window) {
-                    window.speechSynthesis.cancel500 || window.speechSynthesis.cancel(); // עצירת דיבור קודם שלא יתקע
+                    window.speechSynthesis.cancel();
                     let utterance = new SpeechSynthesisUtterance(text);
                     utterance.lang = 'he-IL';
-                    utterance.rate = 1.1; // מהירות קצת יותר דינמית
-                    utterance.pitch = 1.0;
+                    utterance.rate = 1.1;
                     window.speechSynthesis.speak(utterance);
                 }
             } catch(e) {}
@@ -234,7 +210,7 @@
 
         function drawLiveFeed() {
             if (!video.videoWidth) return;
-            if (!isRunning && !isArmed && !isFinished) {
+            if (!isWaitingForStart && !isRunning) {
                 drawPreview();
             }
             requestAnimationFrame(drawLiveFeed);
@@ -255,52 +231,91 @@
             ctx.strokeRect(sx, sy, sw, sh);
         }
 
-        function startCountdown() {
-            if (isRunning || isArmed) return;
+        function startSystem() {
+            if (isWaitingForStart || isRunning) return;
             
             let delay = parseInt(document.getElementById('delaySelect').value);
-            totalRiders = parseInt(document.getElementById('ridersCount').value);
-            currentRider = 1;
-            isFinished = false;
+            isWaitingForStart = true;
             
             if (countdownTimer) clearInterval(countdownTimer);
 
-            statusDisplay.innerText = `הכנה לרוכב 1 - מתחיל בעוד: ${delay} שניות...`;
+            statusDisplay.innerText = `המערכת דרוכה - מתחילה בעוד ${delay} שניות...`;
             
             countdownTimer = setInterval(() => {
                 delay--;
                 
-                // הקראה קולית בשניות האחרונות (למשל מ-10 או פחות)
                 if (delay <= 10 && delay > 0) {
                     speakText(delay.toString());
                 }
 
                 if (delay > 0) {
-                    statusDisplay.innerText = `הכנה לרוכב 1 - מתחיל בעוד: ${delay} שניות...`;
+                    statusDisplay.innerText = `המערכת דרוכה - מתחילה בעוד ${delay} שניות...`;
                 } else {
                     clearInterval(countdownTimer);
-                    speakText("צא!"); // מילה קולית חזקה כשמתחיל!
-                    beginRun();
+                    speakText("צא!");
+                    armDetection();
                 }
             }, 1000);
         }
 
-        function beginRun() {
-            if (isFinished) return;
-            statusDisplay.innerText = `ממתין לרוכב ${currentRider} מתוך ${totalRiders}...`;
+        // שלב א': המערכת דרוכה ומחכה שרוכב יעבור כדי *להתחיל* את הטיימר
+        function armDetection() {
+            statusDisplay.innerText = "המערכת מחכה שתעבור כדי להפעיל את הטיימר...";
             canvas.width = video.videoWidth || 300;
             canvas.height = video.videoHeight || 150;
 
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             lastFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             
-            startTime = performance.now();
-            isRunning = true;
-            isArmed = true;
-            runDetection();
+            waitForTrigger();
         }
 
-        function runDetection() {
+        function waitForTrigger() {
+            if (!isWaitingForStart) return;
+
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            let currentData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+            let cropX = parseInt(document.getElementById('cropX').value) / 100;
+            let cropY = parseInt(document.getElementById('cropY').value) / 100;
+
+            let startX = Math.floor(canvas.width * cropX);
+            let endX = Math.floor(canvas.width * (1 - cropX));
+            let startY = Math.floor(canvas.height * cropY);
+            let endY = Math.floor(canvas.height * (1 - cropY));
+
+            let diffCount = 0;
+
+            for (let y = startY; y < endY; y += 10) {
+                for (let x = startX; x < endX; x += 10) {
+                    let i = (y * canvas.width + x) * 4;
+                    let rDiff = Math.abs(currentData.data[i] - lastFrameData.data[i]);
+                    let gDiff = Math.abs(currentData.data[i+1] - lastFrameData.data[i+1]);
+                    let bDiff = Math.abs(currentData.data[i+2] - lastFrameData.data[i+2]);
+
+                    if ((rDiff + gDiff + bDiff) > 80) {
+                        diffCount++;
+                    }
+                }
+            }
+
+            // זוהתה תנועה ראשונה -> מתחילים את הטיימר בפועל!
+            if (diffCount > 15) {
+                isWaitingForStart = false;
+                isRunning = true;
+                startTime = performance.now();
+                speakText("התחל");
+                statusDisplay.innerText = "הטיימר הופעל! מחכה שתעבור שוב בקו הסיום...";
+                runStopDetection();
+                return;
+            }
+
+            lastFrameData = currentData;
+            requestAnimationFrame(waitForTrigger);
+        }
+
+        // שלב ב': הטיימר רץ, מחכה שרוכב יעבור שוב כדי *לעצור* את הטיימר
+        function runStopDetection() {
             if (!isRunning) return;
 
             const elapsed = (performance.now() - startTime) / 1000;
@@ -332,43 +347,19 @@
                 }
             }
 
+            // זוהתה תנועה שנייה -> עוצרים את הטיימר!
             if (diffCount > 15) {
                 isRunning = false;
-                isArmed = false;
-                speakText("סיום"); // אומר בקול רם "סיום"
+                speakText("סיום");
+                statusDisplay.innerText = "הושלם בהצלחה!";
                 
                 let sessionName = document.getElementById('sessionName').value || "סשן";
-                let recordName = `${sessionName} (רוכב ${currentRider})`;
-                saveResult(recordName, timerDisplay.innerText);
-
-                if (currentRider < totalRiders) {
-                    currentRider++;
-                    let gapSeconds = parseInt(document.getElementById('gapSelect').value);
-                    statusDisplay.innerText = `רוכב ${currentRider - 1} סיים! מתחיל רוכב ${currentRider} בעוד ${gapSeconds} שניות...`;
-                    
-                    let gapCounter = gapSeconds;
-                    let gapTimer = setInterval(() => {
-                        gapCounter--;
-                        if (gapCounter <= 5 && gapCounter > 0) {
-                            speakText(gapCounter.toString());
-                        }
-                        
-                        if (gapCounter <= 0) {
-                            clearInterval(gapTimer);
-                            speakText("צא!");
-                            if (!isFinished) beginRun();
-                        }
-                    }, 1000);
-                } else {
-                    isFinished = true;
-                    statusDisplay.innerText = "כל הרוכבים סיימו בהצלחה!";
-                    speakText("כל הרוכבים סיימו");
-                }
+                saveResult(sessionName, timerDisplay.innerText);
                 return;
             }
 
             lastFrameData = currentData;
-            requestAnimationFrame(runDetection);
+            requestAnimationFrame(runStopDetection);
         }
 
         function saveResult(session, time) {
@@ -398,11 +389,10 @@
         }
 
         function resetTimer() {
+            isWaitingForStart = false;
             isRunning = false;
-            isArmed = false;
-            isFinished = true;
-            currentRider = 1;
             if (countdownTimer) clearInterval(countdownTimer);
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
             timerDisplay.innerText = "00.000";
             statusDisplay.innerText = "מוכן להתחלה";
             drawPreview();
