@@ -251,7 +251,8 @@
                     window.speechSynthesis.cancel();
                     const utterance = new SpeechSynthesisUtterance(text);
                     utterance.lang = 'he-IL';
-                    utterance.rate = 1.1;
+                    utterance.rate = 1.0;
+                    utterance.pitch = 1.0;
                     window.speechSynthesis.speak(utterance);
                 }
             } catch(e) {}
@@ -274,6 +275,7 @@
                     freq = 700;
                     duration = 0.15;
                     volume = 0.4;
+                    speakText(timeLeft.toString());
                 } else if (timeLeft === 3 || timeLeft === 2) {
                     freq = 950;
                     duration = 0.2;
@@ -491,6 +493,8 @@
             currentRider = 1;
             isFinished = false;
             
+            speakText(`התחלת סשן לרוכב ${currentRider}`);
+
             if (countdownTimer) clearInterval(countdownTimer);
 
             if (delaySetting === "auto_motion") {
@@ -535,6 +539,7 @@
             if (trackDelay > 0) {
                 let trackCounter = trackDelay;
                 statusDisplay.innerText = `צא למסלול! זינוק בעוד ${trackCounter} שניות...`;
+                speakText(`זינוק בעוד ${trackCounter} שניות`);
                 let trackTimer = setInterval(() => {
                     trackCounter--;
                     if (trackCounter > 0) {
@@ -554,6 +559,7 @@
 
         function activateMotionSensor() {
             statusDisplay.innerText = `ממתין לתנועה של רוכב ${currentRider} — עבור בפריים להתחלה!`;
+            speakText("מחכה לתנועה");
             canvas.width = video.videoWidth || 300;
             canvas.height = video.videoHeight || 150;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -621,6 +627,7 @@
                         currentRider++;
                         let gapSeconds = parseInt(document.getElementById('gapSelect').value);
                         statusDisplay.innerText = `רוכב ${currentRider - 1} סיים! מתחיל רוכב ${currentRider} בעוד ${gapSeconds} שניות...`;
+                        speakText(`רוכב קודם סיים. מתחיל רוכב ${currentRider} בעוד ${gapSeconds} שניות`);
                         
                         let gapCounter = gapSeconds;
                         let gapTimer = setInterval(() => {
@@ -646,7 +653,7 @@
                     } else {
                         isFinished = true;
                         statusDisplay.innerText = "כל הרוכבים סיימו בהצלחה!";
-                        speakText("הסשן הסתיים בהצלחה");
+                        speakText("כל הרוכבים סיימו בהצלחה");
                     }
                     return;
                 }
@@ -741,7 +748,7 @@
                 } else {
                     isFinished = true;
                     statusDisplay.innerText = "כל הרוכבים סיימו בהצלחה!";
-                    speakText("הסשן הסתיים בהצלחה");
+                    speakText("כל הרוכבים סיימו בהצלחה");
                 }
                 return;
             }
@@ -784,6 +791,7 @@
             if (countdownTimer) clearInterval(countdownTimer);
             timerDisplay.innerText = "00.000";
             statusDisplay.innerText = "מוכן להתחלה";
+            speakText("הטיימר אופס");
             drawPreview();
         }
     </script>
