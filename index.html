@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bike Timer Pro - Touch Crop</title>
+    <title>Bike Timer Pro - Smart Touch Detection</title>
     <style>
         body { 
             background: #0f1115; 
@@ -115,7 +115,7 @@
             border-radius: 12px; 
             background: #000; 
             margin-top: 5px; 
-            touch-action: none; /* מונע גלילה בטעות כשחותכים את התמונה */
+            touch-action: none;
         }
     </style>
 </head>
@@ -127,9 +127,8 @@
         <input type="text" id="sessionName" placeholder="שם הסשן (למשל: ירידה צפונית)">
     </div>
 
-    <!-- כרטיסיית הסבר לחיתוך במקום הסליידרים -->
     <div class="card" style="font-size: 0.85rem; color: #aaa; text-align: center;">
-        💡 <b>איך מסמנים אזור?</b> גרור עם האצבע ישירות על המסך את הקצוות או הפינות של המסגרת האדומה (כמו בצילום מסך).
+        💡 <b>איך מסמנים אזור?</b> גרור עם האצבע ישירות על המסך את הקצוות או הפינות של המסגרת האדומה.
     </div>
 
     <div class="card">
@@ -205,7 +204,6 @@
         let currentRider = 1;
         let totalRiders = 1;
 
-        // מיקומי החיתוך החדשים (באחוזים מ-0 עד 1) - במקום הסליידרים
         let cropInfo = { left: 0.25, right: 0.75, top: 0.25, bottom: 0.75 };
         let activeDrag = null;
 
@@ -242,7 +240,7 @@
             .then(stream => { video.srcObject = stream; })
             .catch(err => { statusDisplay.innerText = "שגיאה בגישה למצלמה!"; });
 
-        // פונקציות מסך מגע לחיתוך חופשי
+        // זיהוי מגע לחיתוך
         function getPointerPos(e) {
             let rect = canvas.getBoundingClientRect();
             let clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -263,7 +261,7 @@
         window.addEventListener('touchend', endDrag);
 
         function startDrag(e) {
-            if (isRunning || isWaitingForStartMotion) return; // אי אפשר לערוך בזמן מדידה
+            if (isRunning || isWaitingForStartMotion) return;
             let pos = getPointerPos(e);
             
             let sx = canvas.width * cropInfo.left;
@@ -271,18 +269,15 @@
             let ex = canvas.width * cropInfo.right;
             let ey = canvas.height * cropInfo.bottom;
 
-            let touchMargin = 30; // גודל אזור התפיסה של האצבע
-
+            let touchMargin = 30;
             activeDrag = { left: false, right: false, top: false, bottom: false, move: false };
             let dragging = false;
 
-            // בודק אם תפסנו את אחד הקצוות
             if (Math.abs(pos.x - sx) < touchMargin && pos.y > sy - touchMargin && pos.y < ey + touchMargin) { activeDrag.left = true; dragging = true; }
             if (Math.abs(pos.x - ex) < touchMargin && pos.y > sy - touchMargin && pos.y < ey + touchMargin) { activeDrag.right = true; dragging = true; }
             if (Math.abs(pos.y - sy) < touchMargin && pos.x > sx - touchMargin && pos.x < ex + touchMargin) { activeDrag.top = true; dragging = true; }
             if (Math.abs(pos.y - ey) < touchMargin && pos.x > sx - touchMargin && pos.x < ex + touchMargin) { activeDrag.bottom = true; dragging = true; }
 
-            // גרירת כל המסגרת אם נוגעים באמצע
             if (!dragging && pos.x > sx + touchMargin && pos.x < ex - touchMargin && pos.y > sy + touchMargin && pos.y < ey - touchMargin) {
                 activeDrag.move = true;
                 activeDrag.startX = pos.x;
@@ -305,7 +300,7 @@
             let pos = getPointerPos(e);
             let nx = pos.x / canvas.width;
             let ny = pos.y / canvas.height;
-            const MIN_SIZE = 0.1; // אי אפשר להקטין יותר מדי
+            const MIN_SIZE = 0.1;
 
             if (activeDrag.move) {
                 let dx = nx - (activeDrag.startX / canvas.width);
@@ -346,26 +341,23 @@
             let sw = canvas.width * (cropInfo.right - cropInfo.left);
             let sh = canvas.height * (cropInfo.bottom - cropInfo.top);
 
-            // עושה הצללה לאזור מחוץ לחיתוך (כמו בצילום מסך)
             ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
             ctx.fillRect(0, 0, canvas.width, sy); 
             ctx.fillRect(0, sy + sh, canvas.width, canvas.height - sy - sh); 
             ctx.fillRect(0, sy, sx, sh); 
             ctx.fillRect(sx + sw, sy, canvas.width - sx - sw, sh);
 
-            // מסגרת החיתוך האדומה
             ctx.strokeStyle = "#ff4444";
             ctx.lineWidth = 3;
             ctx.strokeRect(sx, sy, sw, sh);
 
-            // ידיות לבנות קטנות שיעזרו לראות מאיפה גוררים
             if (!isRunning && !isWaitingForStartMotion && !isFinished) {
                 ctx.fillStyle = "#ffffff";
                 let hs = 14; 
-                ctx.fillRect(sx + sw/2 - hs/2, sy - hs/2, hs, hs); // למעלה
-                ctx.fillRect(sx + sw/2 - hs/2, sy + sh - hs/2, hs, hs); // למטה
-                ctx.fillRect(sx + sw - hs/2, sy + sh/2 - hs/2, hs, hs); // ימין
-                ctx.fillRect(sx - hs/2, sy + sh/2 - hs/2, hs, hs); // שמאל
+                ctx.fillRect(sx + sw/2 - hs/2, sy - hs/2, hs, hs); 
+                ctx.fillRect(sx + sw/2 - hs/2, sy + sh - hs/2, hs, hs); 
+                ctx.fillRect(sx + sw - hs/2, sy + sh/2 - hs/2, hs, hs); 
+                ctx.fillRect(sx - hs/2, sy + sh/2 - hs/2, hs, hs); 
             }
         }
 
@@ -386,15 +378,13 @@
                 
                 countdownTimer = setInterval(() => {
                     prepDelay--;
-                    if (prepDelay <= 3 && prepDelay > 0) {
-                        playBeep(800, 0.25);
-                    }
+                    if (prepDelay <= 3 && prepDelay > 0) playBeep(800, 0.25);
 
                     if (prepDelay > 0) {
                         statusDisplay.innerText = `התארגנות רוכב ${currentRider} — מתחיל בעוד ${prepDelay} שניות...`;
                     } else {
                         clearInterval(countdownTimer);
-                        playBeep(1200, 0.5); 
+                        playBeep(1200, 0.5);
                         
                         statusDisplay.innerText = `ממתין לתנועה של רוכב ${currentRider} — עבור בפריים להתחלה!`;
                         canvas.width = video.videoWidth || 300;
@@ -411,9 +401,7 @@
                 
                 countdownTimer = setInterval(() => {
                     delay--;
-                    if (delay <= 3 && delay > 0) {
-                        playBeep(800, 0.25);
-                    }
+                    if (delay <= 3 && delay > 0) playBeep(800, 0.25);
 
                     if (delay > 0) {
                         statusDisplay.innerText = `הכנה לרוכב 1 - מתחיל בעוד: ${delay} שניות...`;
@@ -432,16 +420,17 @@
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             let currentData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-            // קריאת האזורים החדשים מתוך המסך האינטראקטיבי במקום סליידרים
             let startX = Math.floor(canvas.width * cropInfo.left);
             let endX = Math.floor(canvas.width * cropInfo.right);
             let startY = Math.floor(canvas.height * cropInfo.top);
             let endY = Math.floor(canvas.height * cropInfo.bottom);
 
             let diffCount = 0;
+            let pointsChecked = 0;
 
-            for (let y = startY; y < endY; y += 10) {
-                for (let x = startX; x < endX; x += 10) {
+            // סריקה צפופה ברזולוציה גבוהה (קפיצות של 5 פיקסלים במקום 10)
+            for (let y = startY; y < endY; y += 5) {
+                for (let x = startX; x < endX; x += 5) {
                     let i = (y * canvas.width + x) * 4;
                     let rDiff = Math.abs(currentData.data[i] - lastFrameData.data[i]);
                     let gDiff = Math.abs(currentData.data[i+1] - lastFrameData.data[i+1]);
@@ -450,17 +439,26 @@
                     if ((rDiff + gDiff + bDiff) > 80) {
                         diffCount++;
                     }
+                    pointsChecked++;
                 }
             }
 
-            if (diffCount > 15) {
+            // חישוב רגישות חכמה - מינימום 5 נקודות או 5% מהשטח הנסרק (מה שיותר גדול)
+            let triggerThreshold = Math.max(5, Math.floor(pointsChecked * 0.05));
+
+            // מראה את הקו האדום החצי-שקוף גם בזמן הריצה כדי שתראה את קו הסיום
+            ctx.strokeStyle = "rgba(255, 68, 68, 0.6)";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(startX, startY, endX - startX, endY - startY);
+
+            if (diffCount > triggerThreshold) {
                 if (isWaitingForStartMotion) {
                     isWaitingForStartMotion = false;
                     playBeep(1200, 0.4);
                     startTime = performance.now();
                     isRunning = true;
                     statusDisplay.innerText = `רוכב ${currentRider} בדרך!`;
-                    lastFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    lastFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height); // חשוב לאתחל כדי לא לקפוץ ישר לעצירה
                     requestAnimationFrame(runAutoMotionDetection);
                     return;
                 } else if (isRunning) {
@@ -486,9 +484,7 @@
                         let gapCounter = gapSeconds;
                         let gapTimer = setInterval(() => {
                             gapCounter--;
-                            if (gapCounter <= 3 && gapCounter > 0) {
-                                playBeep(800, 0.25);
-                            }
+                            if (gapCounter <= 3 && gapCounter > 0) playBeep(800, 0.25);
                             if (gapCounter <= 0) {
                                 clearInterval(gapTimer);
                                 playBeep(1200, 0.4);
@@ -497,9 +493,7 @@
                                 
                                 let nextTimer = setInterval(() => {
                                     nextPrep--;
-                                    if (nextPrep <= 3 && nextPrep > 0) {
-                                        playBeep(800, 0.25);
-                                    }
+                                    if (nextPrep <= 3 && nextPrep > 0) playBeep(800, 0.25);
                                     if (nextPrep <= 0) {
                                         clearInterval(nextTimer);
                                         playBeep(1200, 0.5);
@@ -559,16 +553,17 @@
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             let currentData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-            // קריאת האזורים החדשים מתוך המסך האינטראקטיבי
             let startX = Math.floor(canvas.width * cropInfo.left);
             let endX = Math.floor(canvas.width * cropInfo.right);
             let startY = Math.floor(canvas.height * cropInfo.top);
             let endY = Math.floor(canvas.height * cropInfo.bottom);
 
             let diffCount = 0;
+            let pointsChecked = 0;
 
-            for (let y = startY; y < endY; y += 10) {
-                for (let x = startX; x < endX; x += 10) {
+            // סריקה צפופה גם למצב השהיית דקות
+            for (let y = startY; y < endY; y += 5) {
+                for (let x = startX; x < endX; x += 5) {
                     let i = (y * canvas.width + x) * 4;
                     let rDiff = Math.abs(currentData.data[i] - lastFrameData.data[i]);
                     let gDiff = Math.abs(currentData.data[i+1] - lastFrameData.data[i+1]);
@@ -577,10 +572,17 @@
                     if ((rDiff + gDiff + bDiff) > 80) {
                         diffCount++;
                     }
+                    pointsChecked++;
                 }
             }
 
-            if (diffCount > 15 && elapsed >= 3) {
+            let triggerThreshold = Math.max(5, Math.floor(pointsChecked * 0.05));
+
+            ctx.strokeStyle = "rgba(255, 68, 68, 0.6)";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(startX, startY, endX - startX, endY - startY);
+
+            if (diffCount > triggerThreshold && elapsed >= 3) {
                 isRunning = false;
                 playBeep(500, 0.5);
                 
@@ -596,9 +598,7 @@
                     let gapCounter = gapSeconds;
                     let gapTimer = setInterval(() => {
                         gapCounter--;
-                        if (gapCounter <= 3 && gapCounter > 0) {
-                            playBeep(800, 0.25);
-                        }
+                        if (gapCounter <= 3 && gapCounter > 0) playBeep(800, 0.25);
                         if (gapCounter <= 0) {
                             clearInterval(gapTimer);
                             playBeep(1200, 0.5);
