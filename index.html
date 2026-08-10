@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bike Timer Pro - Perfect Touch Crop</title>
+    <title>Bike Timer Pro - Full Speed Touch</title>
     <style>
         body { 
             background: #0f1115; 
@@ -41,6 +41,26 @@
             font-size: 1rem;
             box-sizing: border-box;
         }
+
+        .crop-preset-btns {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .crop-preset-btns button {
+            flex: 1;
+            background: #252b3b;
+            color: #00ffcc;
+            border: 1px solid #3a4454;
+            padding: 8px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .crop-preset-btns button:active { background: #00ffcc; color: #0f1115; }
 
         .big-btn-container {
             display: flex;
@@ -127,8 +147,14 @@
         <input type="text" id="sessionName" placeholder="שם הסשן (למשל: ירידה צפונית)">
     </div>
 
-    <div class="card" style="font-size: 0.85rem; color: #aaa; text-align: center;">
-        💡 <b>איך מסמנים אזור?</b> גרור עם האצבע ישירות על המסך את הקצוות או הפינות של המסגרת האדומה.
+    <div class="card">
+        <div class="crop-preset-btns">
+            <button onclick="setCropPreset('full')">מסך מלא ⛶</button>
+            <button onclick="setCropPreset('half')">חצי מסך 🔲</button>
+        </div>
+        <div style="font-size: 0.8rem; color: #aaa; text-align: center;">
+            💡 אפשר גם לגרור את המסגרת האדומה עם האצבע
+        </div>
     </div>
 
     <div class="card">
@@ -240,7 +266,17 @@
             .then(stream => { video.srcObject = stream; })
             .catch(err => { statusDisplay.innerText = "שגיאה בגישה למצלמה!"; });
 
-        // חישוב מגע מדויק שמתאים בדיוק לגודל התצוגה של הקנבס
+        // פונקציות כפתורי קרופ מהירים
+        function setCropPreset(type) {
+            if (isRunning || isWaitingForStartMotion) return;
+            if (type === 'full') {
+                cropInfo = { left: 0.0, right: 1.0, top: 0.0, bottom: 1.0 };
+            } else if (type === 'half') {
+                cropInfo = { left: 0.25, right: 0.75, top: 0.25, bottom: 0.75 };
+            }
+            drawPreview();
+        }
+
         function getPointerPos(e) {
             let rect = canvas.getBoundingClientRect();
             let clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -264,9 +300,8 @@
 
         function startDrag(e) {
             if (isRunning || isWaitingForStartMotion) return;
-            let pos = getPointerPos(e); // מחזיר אחוזים מ-0 עד 1
-            
-            let touchMargin = 0.08; // מרחב מגע יחסי
+            let pos = getPointerPos(e);
+            let touchMargin = 0.08;
 
             activeDrag = { left: false, right: false, top: false, bottom: false, move: false };
             let dragging = false;
@@ -423,23 +458,23 @@
             let diffCount = 0;
             let pointsChecked = 0;
 
-            for (let y = startY; y < endY; y += 4) {
-                for (let x = startX; x < endX; x += 4) {
+            // סריקה מלאה ומדויקת 100% בלי לפספס פיקסל
+            for (let y = startY; y < endY; y += 2) {
+                for (let x = startX; x < endX; x += 2) {
                     let i = (y * canvas.width + x) * 4;
                     let rDiff = Math.abs(currentData.data[i] - lastFrameData.data[i]);
                     let gDiff = Math.abs(currentData.data[i+1] - lastFrameData.data[i+1]);
                     let bDiff = Math.abs(currentData.data[i+2] - lastFrameData.data[i+2]);
 
-                    if ((rDiff + gDiff + bDiff) > 75) {
+                    if ((rDiff + gDiff + bDiff) > 50) { // רגישות גבוהה לתנועה מהירה
                         diffCount++;
                     }
                     pointsChecked++;
                 }
             }
 
-            let triggerThreshold = Math.max(4, Math.floor(pointsChecked * 0.03));
+            let triggerThreshold = Math.max(3, Math.floor(pointsChecked * 0.01));
 
-            // ציור הקו האדום בזמן אמת כדי שתראה שזה בדיוק יושב על האזור שבחרת
             ctx.strokeStyle = "rgba(255, 68, 68, 0.7)";
             ctx.lineWidth = 3;
             ctx.strokeRect(startX, startY, endX - startX, endY - startY);
@@ -456,7 +491,7 @@
                     return;
                 } else if (isRunning) {
                     const elapsedCheck = (performance.now() - startTime) / 1000;
-                    if (elapsedCheck < 3) {
+                    if (elapsedCheck < 2) {
                         lastFrameData = currentData;
                         requestAnimationFrame(runAutoMotionDetection);
                         return;
@@ -554,27 +589,27 @@
             let diffCount = 0;
             let pointsChecked = 0;
 
-            for (let y = startY; y < endY; y += 4) {
-                for (let x = startX; x < endX; x += 4) {
+            for (let y = startY; y < endY; y += 2) {
+                for (let x = startX; x < endX; x += 2) {
                     let i = (y * canvas.width + x) * 4;
                     let rDiff = Math.abs(currentData.data[i] - lastFrameData.data[i]);
                     let gDiff = Math.abs(currentData.data[i+1] - lastFrameData.data[i+1]);
                     let bDiff = Math.abs(currentData.data[i+2] - lastFrameData.data[i+2]);
 
-                    if ((rDiff + gDiff + bDiff) > 75) {
+                    if ((rDiff + gDiff + bDiff) > 50) {
                         diffCount++;
                     }
                     pointsChecked++;
                 }
             }
 
-            let triggerThreshold = Math.max(4, Math.floor(pointsChecked * 0.03));
+            let triggerThreshold = Math.max(3, Math.floor(pointsChecked * 0.01));
 
             ctx.strokeStyle = "rgba(255, 68, 68, 0.7)";
             ctx.lineWidth = 3;
             ctx.strokeRect(startX, startY, endX - startX, endY - startY);
 
-            if (diffCount > triggerThreshold && elapsed >= 3) {
+            if (diffCount > triggerThreshold && elapsed >= 2) {
                 isRunning = false;
                 playBeep(500, 0.5);
                 
