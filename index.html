@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bike Timer Pro - Trigger & Stop Mode</title>
+    <title>Bike Timer Pro - Trigger & Stop (Beeps Only)</title>
     <style>
         body { 
             background: #0f1115; 
@@ -179,20 +179,31 @@
         const resultsList = document.getElementById('resultsList');
         
         let startTime = 0;
-        let isWaitingForStart = false; // ממתין לזמן או למעבר תחילת סשן
-        let isRunning = false;         // הטיימר רץ (מחכה לעצירה)
+        let isWaitingForStart = false; // ממתין לרוכב הראשון שיעבור
+        let isRunning = false;         // הטיימר רץ (מחכה לרוכב שיעבור שוב לעצור)
+        let onCooldown = false;        // השהייה קלה למניעת עצירה מיידית
         let lastFrameData = null;
         let countdownTimer = null;
+        let cooldownTimer = null;
 
-        function speakText(text) {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playBeep(freq, duration, volume = 0.5) {
             try {
-                if ('speechSynthesis' in window) {
-                    window.speechSynthesis.cancel();
-                    let utterance = new SpeechSynthesisUtterance(text);
-                    utterance.lang = 'he-IL';
-                    utterance.rate = 1.1;
-                    window.speechSynthesis.speak(utterance);
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
                 }
+                const osc = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
+                
+                osc.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
             } catch(e) {}
         }
 
@@ -239,20 +250,23 @@
             
             if (countdownTimer) clearInterval(countdownTimer);
 
-            statusDisplay.innerText = `המערכת דרוכה - מתחילה בעוד ${delay} שניות...`;
+            statusDisplay.innerText = `המערכת מתכוננת לדריכה בעוד ${delay} שניות...`;
             
             countdownTimer = setInterval(() => {
                 delay--;
                 
-                if (delay <= 10 && delay > 0) {
-                    speakText(delay.toString());
+                // ביפים חזקים - אין קול אנושי
+                if (delay > 3) {
+                    playBeep(500, 0.1, 0.3); // ביפ רגיל
+                } else if (delay <= 3 && delay > 0) {
+                    playBeep(850, 0.2, 0.6); // ביפ חזק בשלוש שניות האחרונות
                 }
 
                 if (delay > 0) {
-                    statusDisplay.innerText = `המערכת דרוכה - מתחילה בעוד ${delay} שניות...`;
+                    statusDisplay.innerText = `המערכת מתכוננת לדריכה בעוד ${delay} שניות...`;
                 } else {
                     clearInterval(countdownTimer);
-                    speakText("צא!");
+                    playBeep(1200, 0.5, 0.8); // ביפ ארוך וחזק מאוד שמודיע על דריכה
                     armDetection();
                 }
             }, 1000);
@@ -260,7 +274,7 @@
 
         // שלב א': המערכת דרוכה ומחכה שרוכב יעבור כדי *להתחיל* את הטיימר
         function armDetection() {
-            statusDisplay.innerText = "המערכת מחכה שתעבור כדי להפעיל את הטיימר...";
+            statusDisplay.innerText = "המערכת דרוכה! מחכה שתעבור כדי להפעיל את הטיימר...";
             canvas.width = video.videoWidth || 300;
             canvas.height = video.videoHeight || 150;
 
@@ -304,8 +318,15 @@
                 isWaitingForStart = false;
                 isRunning = true;
                 startTime = performance.now();
-                speakText("התחל");
+                playBeep(1000, 0.3, 0.8); // צפצוף אישור תחילת זמן
                 statusDisplay.innerText = "הטיימר הופעל! מחכה שתעבור שוב בקו הסיום...";
+                
+                // מונע עצירה בטעות בשניות הראשונות בגלל הגלגל האחורי של האופניים
+                onCooldown = true;
+                cooldownTimer = setTimeout(() => {
+                    onCooldown = false;
+                }, 2500); 
+
                 runStopDetection();
                 return;
             }
@@ -324,38 +345,42 @@
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             let currentData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-            let cropX = parseInt(document.getElementById('cropX').value) / 100;
-            let cropY = parseInt(document.getElementById('cropY').value) / 100;
+            if (!onCooldown) {
+                let cropX = parseInt(document.getElementById('cropX').value) / 100;
+                let cropY = parseInt(document.getElementById('cropY').value) / 100;
 
-            let startX = Math.floor(canvas.width * cropX);
-            let endX = Math.floor(canvas.width * (1 - cropX));
-            let startY = Math.floor(canvas.height * cropY);
-            let endY = Math.floor(canvas.height * (1 - cropY));
+                let startX = Math.floor(canvas.width * cropX);
+                let endX = Math.floor(canvas.width * (1 - cropX));
+                let startY = Math.floor(canvas.height * cropY);
+                let endY = Math.floor(canvas.height * (1 - cropY));
 
-            let diffCount = 0;
+                let diffCount = 0;
 
-            for (let y = startY; y < endY; y += 10) {
-                for (let x = startX; x < endX; x += 10) {
-                    let i = (y * canvas.width + x) * 4;
-                    let rDiff = Math.abs(currentData.data[i] - lastFrameData.data[i]);
-                    let gDiff = Math.abs(currentData.data[i+1] - lastFrameData.data[i+1]);
-                    let bDiff = Math.abs(currentData.data[i+2] - lastFrameData.data[i+2]);
+                for (let y = startY; y < endY; y += 10) {
+                    for (let x = startX; x < endX; x += 10) {
+                        let i = (y * canvas.width + x) * 4;
+                        let rDiff = Math.abs(currentData.data[i] - lastFrameData.data[i]);
+                        let gDiff = Math.abs(currentData.data[i+1] - lastFrameData.data[i+1]);
+                        let bDiff = Math.abs(currentData.data[i+2] - lastFrameData.data[i+2]);
 
-                    if ((rDiff + gDiff + bDiff) > 80) {
-                        diffCount++;
+                        if ((rDiff + gDiff + bDiff) > 80) {
+                            diffCount++;
+                        }
                     }
                 }
-            }
 
-            // זוהתה תנועה שנייה -> עוצרים את הטיימר!
-            if (diffCount > 15) {
-                isRunning = false;
-                speakText("סיום");
-                statusDisplay.innerText = "הושלם בהצלחה!";
-                
-                let sessionName = document.getElementById('sessionName').value || "סשן";
-                saveResult(sessionName, timerDisplay.innerText);
-                return;
+                // זוהתה תנועה שנייה -> עוצרים את הטיימר!
+                if (diffCount > 15) {
+                    isRunning = false;
+                    playBeep(600, 0.6, 0.8); // צפצוף כפול לסיום
+                    setTimeout(() => playBeep(600, 0.6, 0.8), 200);
+                    
+                    statusDisplay.innerText = "הושלם בהצלחה!";
+                    
+                    let sessionName = document.getElementById('sessionName').value || "סשן";
+                    saveResult(sessionName, timerDisplay.innerText);
+                    return;
+                }
             }
 
             lastFrameData = currentData;
@@ -391,8 +416,9 @@
         function resetTimer() {
             isWaitingForStart = false;
             isRunning = false;
+            onCooldown = false;
             if (countdownTimer) clearInterval(countdownTimer);
-            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+            if (cooldownTimer) clearTimeout(cooldownTimer);
             timerDisplay.innerText = "00.000";
             statusDisplay.innerText = "מוכן להתחלה";
             drawPreview();
