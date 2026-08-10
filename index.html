@@ -493,7 +493,7 @@
             currentRider = 1;
             isFinished = false;
             
-            speakText(`התחלת סשן לרוכב ${currentRider}`);
+            speakText(`מתחיל סשן`);
 
             if (countdownTimer) clearInterval(countdownTimer);
 
@@ -510,7 +510,12 @@
                     } else {
                         clearInterval(countdownTimer);
                         playFinalBeep();
-                        speakText("צא לדרך!");
+                        
+                        let trackDelay = parseInt(document.getElementById('trackDelaySelect').value);
+                        if (trackDelay === 0) {
+                            speakText("צא לדרך!");
+                        }
+
                         handleTrackDelay(activateMotionSensor);
                     }
                 }, 1000);
@@ -527,7 +532,12 @@
                     } else {
                         clearInterval(countdownTimer);
                         playFinalBeep();
-                        speakText("צא לדרך!");
+                        
+                        let trackDelay = parseInt(document.getElementById('trackDelaySelect').value);
+                        if (trackDelay === 0) {
+                            speakText("צא לדרך!");
+                        }
+
                         handleTrackDelay(beginRunTimer);
                     }
                 }, 1000);
@@ -645,6 +655,12 @@
                                     if (nextPrep <= 0) {
                                         clearInterval(nextTimer);
                                         playFinalBeep();
+                                        
+                                        let trackDelay = parseInt(document.getElementById('trackDelaySelect').value);
+                                        if (trackDelay === 0) {
+                                            speakText("צא לדרך!");
+                                        }
+
                                         handleTrackDelay(activateMotionSensor);
                                     }
                                 }, 1000);
@@ -742,7 +758,13 @@
                         if (gapCounter <= 0) {
                             clearInterval(gapTimer);
                             playFinalBeep();
-                            if (!isFinished) handleTrackDelay(beginRunTimer);
+                            if (!isFinished) {
+                                let trackDelay = parseInt(document.getElementById('trackDelaySelect').value);
+                                if (trackDelay === 0) {
+                                    speakText("צא לדרך!");
+                                }
+                                handleTrackDelay(beginRunTimer);
+                            }
                         }
                     }, 1000);
                 } else {
@@ -791,7 +813,6 @@
             if (countdownTimer) clearInterval(countdownTimer);
             timerDisplay.innerText = "00.000";
             statusDisplay.innerText = "מוכן להתחלה";
-            speakText("הטיימר אופס");
             drawPreview();
         }
     </script>
