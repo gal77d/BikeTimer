@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bike Timer Pro - Custom Track Delays</title>
+    <title>Bike Timer Pro - Persistent Settings</title>
     <style>
         body { 
             background: #0f1115; 
@@ -144,7 +144,7 @@
     <h1>Bike Timer Pro 🚲</h1>
     
     <div class="card">
-        <input type="text" id="sessionName" placeholder="שם הסשן (למשל: ירידה צפונית)">
+        <input type="text" id="sessionName" placeholder="שם הסשן (למשל: ירידה צפונית)" oninput="saveSettings()">
     </div>
 
     <div class="card">
@@ -161,7 +161,7 @@
         <div style="display: flex; gap: 10px;">
             <div style="flex: 1; text-align: right;">
                 <label style="font-size: 0.8rem;">כמות רוכבים:</label>
-                <select id="ridersCount">
+                <select id="ridersCount" onchange="saveSettings()">
                     <option value="1" selected>רוכב 1</option>
                     <option value="2">2 רוכבים</option>
                     <option value="3">3 רוכבים</option>
@@ -171,7 +171,7 @@
             </div>
             <div style="flex: 1; text-align: right;">
                 <label style="font-size: 0.8rem;">השהייה ראשונית:</label>
-                <select id="delaySelect">
+                <select id="delaySelect" onchange="saveSettings()">
                     <option value="auto_motion" selected>אוטומטי (תנועה מתחילה ועוצרת)</option>
                     <option value="5">5 שניות</option>
                     <option value="10">10 שניות</option>
@@ -187,7 +187,7 @@
         <div style="margin-top: 8px; display: flex; gap: 10px; text-align: right;">
             <div style="flex: 1;">
                 <label style="font-size: 0.8rem;">השהייה בין רוכבים:</label>
-                <select id="gapSelect">
+                <select id="gapSelect" onchange="saveSettings()">
                     <option value="3">3 שניות</option>
                     <option value="5" selected>5 שניות</option>
                     <option value="10">10 שניות</option>
@@ -196,7 +196,7 @@
             </div>
             <div style="flex: 1;">
                 <label style="font-size: 0.8rem;">דילאי הגעה למסלול:</label>
-                <select id="trackDelaySelect">
+                <select id="trackDelaySelect" onchange="saveSettings()">
                     <option value="0" selected>ללא דילאי הגעה</option>
                     <option value="1">שנייה אחת</option>
                     <option value="2">שתי שניות</option>
@@ -240,7 +240,8 @@
         let currentRider = 1;
         let totalRiders = 1;
 
-        let cropInfo = { left: 0.25, right: 0.75, top: 0.25, bottom: 0.75 };
+        // טעינת מיקום המסגרת האדומה השמור או ברירת מחדל
+        let cropInfo = JSON.parse(localStorage.getItem('bikeTimerCrop')) || { left: 0.25, right: 0.75, top: 0.25, bottom: 0.75 };
         let activeDrag = null;
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -298,7 +299,32 @@
             } catch(e) {}
         }
 
-        window.addEventListener('DOMContentLoaded', loadHistory);
+        window.addEventListener('DOMContentLoaded', () => {
+            loadHistory();
+            loadSettings();
+        });
+
+        function saveSettings() {
+            const settings = {
+                sessionName: document.getElementById('sessionName').value,
+                ridersCount: document.getElementById('ridersCount').value,
+                delaySelect: document.getElementById('delaySelect').value,
+                gapSelect: document.getElementById('gapSelect').value,
+                trackDelaySelect: document.getElementById('trackDelaySelect').value
+            };
+            localStorage.setItem('bikeTimerSettings', JSON.stringify(settings));
+        }
+
+        function loadSettings() {
+            const saved = JSON.parse(localStorage.getItem('bikeTimerSettings'));
+            if (saved) {
+                if (saved.sessionName !== undefined) document.getElementById('sessionName').value = saved.sessionName;
+                if (saved.ridersCount !== undefined) document.getElementById('ridersCount').value = saved.ridersCount;
+                if (saved.delaySelect !== undefined) document.getElementById('delaySelect').value = saved.delaySelect;
+                if (saved.gapSelect !== undefined) document.getElementById('gapSelect').value = saved.gapSelect;
+                if (saved.trackDelaySelect !== undefined) document.getElementById('trackDelaySelect').value = saved.trackDelaySelect;
+            }
+        }
 
         video.addEventListener('loadedmetadata', () => {
             canvas.width = video.videoWidth || 300;
@@ -317,6 +343,7 @@
             } else if (type === 'half') {
                 cropInfo = { left: 0.25, right: 0.75, top: 0.25, bottom: 0.75 };
             }
+            localStorage.setItem('bikeTimerCrop', JSON.stringify(cropInfo));
             drawPreview();
         }
 
@@ -401,6 +428,9 @@
         }
 
         function endDrag() {
+            if (activeDrag) {
+                localStorage.setItem('bikeTimerCrop', JSON.stringify(cropInfo));
+            }
             activeDrag = null;
         }
 
