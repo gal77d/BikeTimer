@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bike Timer Pro - Full Speed Touch</title>
+    <title>Bike Timer Pro - Original Detection</title>
     <style>
         body { 
             background: #0f1115; 
@@ -153,7 +153,7 @@
             <button onclick="setCropPreset('half')">חצי מסך 🔲</button>
         </div>
         <div style="font-size: 0.8rem; color: #aaa; text-align: center;">
-            💡 אפשר גם לגרור את המסגרת האדומה עם האצבע
+            💡 גרור את המסגרת האדומה עם האצבע כדי לדייק
         </div>
     </div>
 
@@ -257,16 +257,15 @@
         window.addEventListener('DOMContentLoaded', loadHistory);
 
         video.addEventListener('loadedmetadata', () => {
-            canvas.width = video.videoWidth || 640;
-            canvas.height = video.videoHeight || 480;
+            canvas.width = video.videoWidth || 300;
+            canvas.height = video.videoHeight || 150;
             drawLiveFeed();
         });
 
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } } })
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
             .then(stream => { video.srcObject = stream; })
             .catch(err => { statusDisplay.innerText = "שגיאה בגישה למצלמה!"; });
 
-        // פונקציות כפתורי קרופ מהירים
         function setCropPreset(type) {
             if (isRunning || isWaitingForStartMotion) return;
             if (type === 'full') {
@@ -281,13 +280,11 @@
             let rect = canvas.getBoundingClientRect();
             let clientX = e.touches ? e.touches[0].clientX : e.clientX;
             let clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            
-            let x = (clientX - rect.left) / rect.width;
-            let y = (clientY - rect.top) / rect.height;
-            
+            let scaleX = canvas.width / rect.width;
+            let scaleY = canvas.height / rect.height;
             return {
-                x: Math.max(0, Math.min(x, 1)),
-                y: Math.max(0, Math.min(y, 1))
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
             };
         }
 
@@ -301,16 +298,22 @@
         function startDrag(e) {
             if (isRunning || isWaitingForStartMotion) return;
             let pos = getPointerPos(e);
-            let touchMargin = 0.08;
+            
+            let sx = canvas.width * cropInfo.left;
+            let sy = canvas.height * cropInfo.top;
+            let ex = canvas.width * cropInfo.right;
+            let ey = canvas.height * cropInfo.bottom;
 
+            let touchMargin = 30;
             activeDrag = { left: false, right: false, top: false, bottom: false, move: false };
             let dragging = false;
 
-            if (Math.abs(pos.x - cropInfo.left) < touchMargin && pos.y > cropInfo.top - touchMargin && pos.y < cropInfo.bottom + touchMargin) { activeDrag.left = true; dragging = true; }
-            else if (Math.abs(pos.x - cropInfo.right) < touchMargin && pos.y > cropInfo.top - touchMargin && pos.y < cropInfo.bottom + touchMargin) { activeDrag.right = true; dragging = true; }
-            else if (Math.abs(pos.y - cropInfo.top) < touchMargin && pos.x > cropInfo.left - touchMargin && pos.x < cropInfo.right + touchMargin) { activeDrag.top = true; dragging = true; }
-            else if (Math.abs(pos.y - cropInfo.bottom) < touchMargin && pos.x > cropInfo.left - touchMargin && pos.x < cropInfo.right + touchMargin) { activeDrag.bottom = true; dragging = true; }
-            else if (pos.x > cropInfo.left + touchMargin && pos.x < cropInfo.right - touchMargin && pos.y > cropInfo.top + touchMargin && pos.y < cropInfo.bottom - touchMargin) {
+            if (Math.abs(pos.x - sx) < touchMargin && pos.y > sy - touchMargin && pos.y < ey + touchMargin) { activeDrag.left = true; dragging = true; }
+            if (Math.abs(pos.x - ex) < touchMargin && pos.y > sy - touchMargin && pos.y < ey + touchMargin) { activeDrag.right = true; dragging = true; }
+            if (Math.abs(pos.y - sy) < touchMargin && pos.x > sx - touchMargin && pos.x < ex + touchMargin) { activeDrag.top = true; dragging = true; }
+            if (Math.abs(pos.y - ey) < touchMargin && pos.x > sx - touchMargin && pos.x < ex + touchMargin) { activeDrag.bottom = true; dragging = true; }
+
+            if (!dragging && pos.x > sx + touchMargin && pos.x < ex - touchMargin && pos.y > sy + touchMargin && pos.y < ey - touchMargin) {
                 activeDrag.move = true;
                 activeDrag.startX = pos.x;
                 activeDrag.startY = pos.y;
@@ -330,11 +333,13 @@
             if (e.type === 'touchmove') e.preventDefault();
             
             let pos = getPointerPos(e);
-            const MIN_SIZE = 0.05;
+            let nx = pos.x / canvas.width;
+            let ny = pos.y / canvas.height;
+            const MIN_SIZE = 0.1;
 
             if (activeDrag.move) {
-                let dx = pos.x - activeDrag.startX;
-                let dy = pos.y - activeDrag.startY;
+                let dx = nx - (activeDrag.startX / canvas.width);
+                let dy = ny - (activeDrag.startY / canvas.height);
                 
                 let width = activeDrag.origRight - activeDrag.origLeft;
                 let height = activeDrag.origBottom - activeDrag.origTop;
@@ -344,10 +349,10 @@
                 cropInfo.top = Math.max(0, Math.min(activeDrag.origTop + dy, 1 - height));
                 cropInfo.bottom = cropInfo.top + height;
             } else {
-                if (activeDrag.left)   cropInfo.left = Math.max(0, Math.min(pos.x, cropInfo.right - MIN_SIZE));
-                if (activeDrag.right)  cropInfo.right = Math.min(1, Math.max(pos.x, cropInfo.left + MIN_SIZE));
-                if (activeDrag.top)    cropInfo.top = Math.max(0, Math.min(pos.y, cropInfo.bottom - MIN_SIZE));
-                if (activeDrag.bottom) cropInfo.bottom = Math.min(1, Math.max(pos.y, cropInfo.top + MIN_SIZE));
+                if (activeDrag.left)   cropInfo.left = Math.max(0, Math.min(nx, cropInfo.right - MIN_SIZE));
+                if (activeDrag.right)  cropInfo.right = Math.min(1, Math.max(nx, cropInfo.left + MIN_SIZE));
+                if (activeDrag.top)    cropInfo.top = Math.max(0, Math.min(ny, cropInfo.bottom - MIN_SIZE));
+                if (activeDrag.bottom) cropInfo.bottom = Math.min(1, Math.max(ny, cropInfo.top + MIN_SIZE));
             }
         }
 
@@ -417,8 +422,8 @@
                         playBeep(1200, 0.5);
                         
                         statusDisplay.innerText = `ממתין לתנועה של רוכב ${currentRider} — עבור בפריים להתחלה!`;
-                        canvas.width = video.videoWidth || canvas.width;
-                        canvas.height = video.videoHeight || canvas.height;
+                        canvas.width = video.videoWidth || 300;
+                        canvas.height = video.videoHeight || 150;
                         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                         lastFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                         isWaitingForStartMotion = true;
@@ -456,30 +461,21 @@
             let endY = Math.floor(canvas.height * cropInfo.bottom);
 
             let diffCount = 0;
-            let pointsChecked = 0;
 
-            // סריקה מלאה ומדויקת 100% בלי לפספס פיקסל
-            for (let y = startY; y < endY; y += 2) {
-                for (let x = startX; x < endX; x += 2) {
+            for (let y = startY; y < endY; y += 10) {
+                for (let x = startX; x < endX; x += 10) {
                     let i = (y * canvas.width + x) * 4;
                     let rDiff = Math.abs(currentData.data[i] - lastFrameData.data[i]);
                     let gDiff = Math.abs(currentData.data[i+1] - lastFrameData.data[i+1]);
                     let bDiff = Math.abs(currentData.data[i+2] - lastFrameData.data[i+2]);
 
-                    if ((rDiff + gDiff + bDiff) > 50) { // רגישות גבוהה לתנועה מהירה
+                    if ((rDiff + gDiff + bDiff) > 80) {
                         diffCount++;
                     }
-                    pointsChecked++;
                 }
             }
 
-            let triggerThreshold = Math.max(3, Math.floor(pointsChecked * 0.01));
-
-            ctx.strokeStyle = "rgba(255, 68, 68, 0.7)";
-            ctx.lineWidth = 3;
-            ctx.strokeRect(startX, startY, endX - startX, endY - startY);
-
-            if (diffCount > triggerThreshold) {
+            if (diffCount > 15) {
                 if (isWaitingForStartMotion) {
                     isWaitingForStartMotion = false;
                     playBeep(1200, 0.4);
@@ -491,7 +487,7 @@
                     return;
                 } else if (isRunning) {
                     const elapsedCheck = (performance.now() - startTime) / 1000;
-                    if (elapsedCheck < 2) {
+                    if (elapsedCheck < 3) {
                         lastFrameData = currentData;
                         requestAnimationFrame(runAutoMotionDetection);
                         return;
@@ -561,8 +557,8 @@
         function beginRunTimer() {
             if (isFinished) return;
             statusDisplay.innerText = `ממתין לרוכב ${currentRider} מתוך ${totalRiders}...`;
-            canvas.width = video.videoWidth || canvas.width;
-            canvas.height = video.videoHeight || canvas.height;
+            canvas.width = video.videoWidth || 300;
+            canvas.height = video.videoHeight || 150;
 
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             lastFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -587,29 +583,21 @@
             let endY = Math.floor(canvas.height * cropInfo.bottom);
 
             let diffCount = 0;
-            let pointsChecked = 0;
 
-            for (let y = startY; y < endY; y += 2) {
-                for (let x = startX; x < endX; x += 2) {
+            for (let y = startY; y < endY; y += 10) {
+                for (let x = startX; x < endX; x += 10) {
                     let i = (y * canvas.width + x) * 4;
                     let rDiff = Math.abs(currentData.data[i] - lastFrameData.data[i]);
                     let gDiff = Math.abs(currentData.data[i+1] - lastFrameData.data[i+1]);
                     let bDiff = Math.abs(currentData.data[i+2] - lastFrameData.data[i+2]);
 
-                    if ((rDiff + gDiff + bDiff) > 50) {
+                    if ((rDiff + gDiff + bDiff) > 80) {
                         diffCount++;
                     }
-                    pointsChecked++;
                 }
             }
 
-            let triggerThreshold = Math.max(3, Math.floor(pointsChecked * 0.01));
-
-            ctx.strokeStyle = "rgba(255, 68, 68, 0.7)";
-            ctx.lineWidth = 3;
-            ctx.strokeRect(startX, startY, endX - startX, endY - startY);
-
-            if (diffCount > triggerThreshold && elapsed >= 2) {
+            if (diffCount > 15 && elapsed >= 3) {
                 isRunning = false;
                 playBeep(500, 0.5);
                 
