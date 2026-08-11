@@ -150,7 +150,7 @@
     <div class="card">
         <div class="crop-preset-btns">
             <button onclick="setCropPreset('full')">מסך מלא ⛶</button>
-            <button onclick="setCropPreset('half')">חצי מסך 🔲</button>
+            <button onclick="setCropPreset('half')">חצי מסך תחתון 🔲</button>
         </div>
         <div style="font-size: 0.8rem; color: #aaa; text-align: center;">
             💡 גרור את המסגרת האדומה עם האצבע כדי לדייק
@@ -240,7 +240,7 @@
         let currentRider = 1;
         let totalRiders = 1;
 
-        let cropInfo = JSON.parse(localStorage.getItem('bikeTimerCrop')) || { left: 0.25, right: 0.75, top: 0.25, bottom: 0.75 };
+        let cropInfo = JSON.parse(localStorage.getItem('bikeTimerCrop')) || { left: 0.0, right: 1.0, top: 0.5, bottom: 1.0 };
         let activeDrag = null;
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -271,21 +271,20 @@
                 let duration = 0.15;
                 let volume = 0.4;
 
+                speakText(timeLeft.toString());
+
                 if (timeLeft > 3 && timeLeft <= 10) {
                     freq = 700;
                     duration = 0.15;
                     volume = 0.4;
-                    speakText(timeLeft.toString());
                 } else if (timeLeft === 3 || timeLeft === 2) {
                     freq = 950;
                     duration = 0.2;
                     volume = 0.6;
-                    speakText(timeLeft.toString());
                 } else if (timeLeft === 1) {
                     freq = 1150;
                     duration = 0.25;
                     volume = 0.7;
-                    speakText("אחד");
                 }
 
                 osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
@@ -356,7 +355,8 @@
             if (type === 'full') {
                 cropInfo = { left: 0.0, right: 1.0, top: 0.0, bottom: 1.0 };
             } else if (type === 'half') {
-                cropInfo = { left: 0.25, right: 0.75, top: 0.25, bottom: 0.75 };
+                // חצי תחתון מלא של המסך
+                cropInfo = { left: 0.0, right: 1.0, top: 0.5, bottom: 1.0 };
             }
             localStorage.setItem('bikeTimerCrop', JSON.stringify(cropInfo));
             drawPreview();
@@ -493,7 +493,7 @@
             currentRider = 1;
             isFinished = false;
             
-            speakText(`מתחיל סשן`);
+            speakText("מתחיל סשן");
 
             if (countdownTimer) clearInterval(countdownTimer);
 
@@ -503,7 +503,9 @@
                 
                 countdownTimer = setInterval(() => {
                     prepDelay--;
-                    if (prepDelay <= 10 && prepDelay > 0) playCountdownBeep(prepDelay);
+                    if (prepDelay <= 10 && prepDelay >= 0) {
+                        playCountdownBeep(prepDelay + 1);
+                    }
 
                     if (prepDelay > 0) {
                         statusDisplay.innerText = `התארגנות רוכב ${currentRider} — מתחיל בעוד ${prepDelay} שניות...`;
@@ -525,7 +527,9 @@
                 
                 countdownTimer = setInterval(() => {
                     delay--;
-                    if (delay <= 10 && delay > 0) playCountdownBeep(delay);
+                    if (delay <= 10 && delay >= 0) {
+                        playCountdownBeep(delay + 1);
+                    }
 
                     if (delay > 0) {
                         statusDisplay.innerText = `הכנה לרוכב 1 - מתחיל בעוד: ${delay} שניות...`;
@@ -651,7 +655,9 @@
                                 
                                 let nextTimer = setInterval(() => {
                                     nextPrep--;
-                                    if (nextPrep <= 10 && nextPrep > 0) playCountdownBeep(nextPrep);
+                                    if (nextPrep <= 10 && nextPrep >= 0) {
+                                        playCountdownBeep(nextPrep + 1);
+                                    }
                                     if (nextPrep <= 0) {
                                         clearInterval(nextTimer);
                                         playFinalBeep();
