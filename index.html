@@ -260,43 +260,6 @@
             } catch(e) {}
         }
 
-        function playCountdownBeep(timeLeft) {
-            try {
-                if (audioCtx.state === 'suspended') audioCtx.resume();
-                const osc = audioCtx.createOscillator();
-                const gainNode = audioCtx.createGain();
-                
-                osc.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
-                
-                let freq = 600;
-                let duration = 0.15;
-                let volume = 0.4;
-
-                speakText(timeLeft.toString());
-
-                if (timeLeft > 3 && timeLeft <= 10) {
-                    freq = 700;
-                    duration = 0.15;
-                    volume = 0.4;
-                } else if (timeLeft === 3 || timeLeft === 2) {
-                    freq = 950;
-                    duration = 0.2;
-                    volume = 0.6;
-                } else if (timeLeft === 1) {
-                    freq = 1150;
-                    duration = 0.25;
-                    volume = 0.7;
-                }
-
-                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-                gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
-                
-                osc.start();
-                osc.stop(audioCtx.currentTime + duration);
-            } catch(e) {}
-        }
-
         function playFinalBeep() {
             try {
                 if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -497,7 +460,23 @@
             if (countdownTimer) clearInterval(countdownTimer);
 
             if (delaySetting === "auto_motion") {
-                activateMotionSensor();
+                let prepDelay = 7;
+                statusDisplay.innerText = `התארגנות רוכב ${currentRider} — מתחיל בעוד ${prepDelay} שניות...`;
+                
+                countdownTimer = setInterval(() => {
+                    prepDelay--;
+                    if (prepDelay <= 10 && prepDelay >= 0) {
+                        speakText((prepDelay + 1).toString());
+                    }
+
+                    if (prepDelay > 0) {
+                        statusDisplay.innerText = `התארגנות רוכב ${currentRider} — מתחיל בעוד ${prepDelay} שניות...`;
+                    } else {
+                        clearInterval(countdownTimer);
+                        playFinalBeep();
+                        activateMotionSensor();
+                    }
+                }, 1000);
             } else {
                 let delay = parseInt(delaySetting);
                 statusDisplay.innerText = `הכנה לרוכב 1 - מתחיל בעוד: ${delay} שניות...`;
@@ -505,7 +484,7 @@
                 countdownTimer = setInterval(() => {
                     delay--;
                     if (delay <= 10 && delay >= 0) {
-                        playCountdownBeep(delay + 1);
+                        speakText((delay + 1).toString());
                     }
 
                     if (delay > 0) {
@@ -534,7 +513,7 @@
                 let trackTimer = setInterval(() => {
                     trackCounter--;
                     if (trackCounter > 0) {
-                        playCountdownBeep(trackCounter);
+                        speakText(trackCounter.toString());
                         statusDisplay.innerText = `צא למסלול! זינוק בעוד ${trackCounter} שניות...`;
                     } else {
                         clearInterval(trackTimer);
@@ -627,7 +606,7 @@
                             let gapCounter = gapSeconds;
                             let gapTimer = setInterval(() => {
                                 gapCounter--;
-                                if (gapCounter <= 10 && gapCounter > 0) playCountdownBeep(gapCounter);
+                                if (gapCounter <= 10 && gapCounter > 0) speakText(gapCounter.toString());
                                 if (gapCounter <= 0) {
                                     clearInterval(gapTimer);
                                     playFinalBeep();
@@ -740,7 +719,7 @@
                         let gapCounter = gapSeconds;
                         let gapTimer = setInterval(() => {
                             gapCounter--;
-                            if (gapCounter <= 10 && gapCounter > 0) playCountdownBeep(gapCounter);
+                            if (gapCounter <= 10 && gapCounter > 0) speakText(gapCounter.toString());
                             if (gapCounter <= 0) {
                                 clearInterval(gapTimer);
                                 playFinalBeep();
