@@ -211,7 +211,7 @@
                 <label class="label-sm">סגנון ספירה לאחור:</label>
                 <select id="countdownMode" onchange="saveSettings()">
                     <option value="full" selected>ספירה מלאה בקול רם מתחילת הזמן</option>
-                    <option value="last10">ביפים קטנים + 10 שניות אחרונות בקול</option>
+                    <option value="last10">ביפים (עד 12 ש' לפני הסוף) + 10 ש' אחרונות בקול</option>
                 </select>
             </div>
             <div style="display: flex; gap: 10px;">
@@ -523,8 +523,11 @@
                 let mode = document.getElementById('countdownMode').value;
 
                 statusDisplay.innerText = `הכנה — מתחיל בעוד: ${delay} ש'...`;
-                if (mode === 'full') speakText(delay.toString());
-                else if (delay <= 10) playTickBeep();
+                if (mode === 'full') {
+                    speakText(delay.toString());
+                } else if (mode === 'last10' && delay > 12) {
+                    playTickBeep();
+                }
 
                 countdownTimer = setInterval(() => {
                     delay--;
@@ -532,10 +535,11 @@
                         statusDisplay.innerText = `הכנה — מתחיל בעוד: ${delay} ש'...`;
                         if (mode === 'full') {
                             speakText(delay.toString());
-                        } else if (mode === 'last10' && delay <= 12) {
-                            if (delay > 2) {
+                        } else if (mode === 'last10') {
+                            if (delay > 12) {
                                 playTickBeep();
-                                if (delay <= 10) speakText(delay.toString());
+                            } else if (delay <= 10) {
+                                speakText(delay.toString());
                             }
                         }
                     } else {
@@ -555,13 +559,13 @@
 
                 statusDisplay.innerText = `זינוק בעוד ${trackCounter} ש'...`;
                 if (mode === 'full') speakText(trackCounter.toString());
-                else playTickBeep();
+                else if (trackCounter > 2) playTickBeep();
 
                 trackTimerInstance = setInterval(() => {
                     trackCounter--;
                     if (trackCounter > 0) {
                         if (mode === 'full') speakText(trackCounter.toString());
-                        else playTickBeep();
+                        else if (trackCounter > 2) playTickBeep();
                         statusDisplay.innerText = `זינוק בעוד ${trackCounter} ש'...`;
                     } else {
                         clearInterval(trackTimerInstance);
@@ -626,16 +630,19 @@
                         } else {
                             let gapCounter = gapSeconds;
                             if (mode === 'full') speakText(gapCounter.toString());
-                            else if (gapCounter > 2) playTickBeep();
+                            else if (gapCounter > 12) playTickBeep();
 
                             gapTimerInstance = setInterval(() => {
                                 gapCounter--;
                                 if (gapCounter > 0) {
                                     if (mode === 'full') {
                                         speakText(gapCounter.toString());
-                                    } else if (mode === 'last10' && gapCounter > 2) {
-                                        playTickBeep();
-                                        if (gapCounter <= 10) speakText(gapCounter.toString());
+                                    } else if (mode === 'last10') {
+                                        if (gapCounter > 12) {
+                                            playTickBeep();
+                                        } else if (gapCounter <= 10) {
+                                            speakText(gapCounter.toString());
+                                        }
                                     }
                                     statusDisplay.innerText = `מתחיל רוכב ${currentRider} בעוד ${gapCounter} ש'...`;
                                 } else {
@@ -692,16 +699,19 @@
                     } else {
                         let gapCounter = gapSeconds;
                         if (mode === 'full') speakText(gapCounter.toString());
-                        else if (gapCounter > 2) playTickBeep();
+                        else if (gapCounter > 12) playTickBeep();
 
                         gapTimerInstance = setInterval(() => {
                             gapCounter--;
                             if (gapCounter > 0) { 
                                 if (mode === 'full') {
                                     speakText(gapCounter.toString());
-                                } else if (mode === 'last10' && gapCounter > 2) {
-                                    playTickBeep();
-                                    if (gapCounter <= 10) speakText(gapCounter.toString());
+                                } else if (mode === 'last10') {
+                                    if (gapCounter > 12) {
+                                        playTickBeep();
+                                    } else if (gapCounter <= 10) {
+                                        speakText(gapCounter.toString());
+                                    }
                                 }
                             } else { 
                                 clearInterval(gapTimerInstance); playFinalBeep(); if (!isFinished) handleTrackDelay(beginRunTimer); 
