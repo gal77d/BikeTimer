@@ -211,7 +211,7 @@
                 <label class="label-sm">סגנון ספירה לאחור:</label>
                 <select id="countdownMode" onchange="saveSettings()">
                     <option value="full" selected>ספירה מלאה בקול רם מתחילת הזמן</option>
-                    <option value="last10">ביפים (עד 12 ש' לפני הסוף) + 10 ש' אחרונות בקול</option>
+                    <option value="last10">ביפים (עוצרים כשהספירה מגיעה ל-10) + 10 ש' בקול</option>
                 </select>
             </div>
             <div style="display: flex; gap: 10px;">
@@ -525,7 +525,7 @@
                 statusDisplay.innerText = `הכנה — מתחיל בעוד: ${delay} ש'...`;
                 if (mode === 'full') {
                     speakText(delay.toString());
-                } else if (mode === 'last10' && delay > 12) {
+                } else if (mode === 'last10' && delay > 10) {
                     playTickBeep();
                 }
 
@@ -536,7 +536,7 @@
                         if (mode === 'full') {
                             speakText(delay.toString());
                         } else if (mode === 'last10') {
-                            if (delay > 12) {
+                            if (delay > 10) {
                                 playTickBeep();
                             } else if (delay <= 10) {
                                 speakText(delay.toString());
@@ -630,7 +630,7 @@
                         } else {
                             let gapCounter = gapSeconds;
                             if (mode === 'full') speakText(gapCounter.toString());
-                            else if (gapCounter > 12) playTickBeep();
+                            else if (gapCounter > 10) playTickBeep();
 
                             gapTimerInstance = setInterval(() => {
                                 gapCounter--;
@@ -638,7 +638,7 @@
                                     if (mode === 'full') {
                                         speakText(gapCounter.toString());
                                     } else if (mode === 'last10') {
-                                        if (gapCounter > 12) {
+                                        if (gapCounter > 10) {
                                             playTickBeep();
                                         } else if (gapCounter <= 10) {
                                             speakText(gapCounter.toString());
@@ -699,7 +699,7 @@
                     } else {
                         let gapCounter = gapSeconds;
                         if (mode === 'full') speakText(gapCounter.toString());
-                        else if (gapCounter > 12) playTickBeep();
+                        else if (gapCounter > 10) playTickBeep();
 
                         gapTimerInstance = setInterval(() => {
                             gapCounter--;
@@ -707,7 +707,7 @@
                                 if (mode === 'full') {
                                     speakText(gapCounter.toString());
                                 } else if (mode === 'last10') {
-                                    if (gapCounter > 12) {
+                                    if (gapCounter > 10) {
                                         playTickBeep();
                                     } else if (gapCounter <= 10) {
                                         speakText(gapCounter.toString());
