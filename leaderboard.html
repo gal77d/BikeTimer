@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>לוח תוצאות - BikeTimer</title>
+    <style>
+        :root {
+            --bg-main: #0b0d10;
+            --bg-card: #15181f;
+            --accent: #00ffcc;
+            --text-main: #ffffff;
+            --text-muted: #8b95a5;
+            --danger: #ff4d4d;
+        }
+
+        body { 
+            background: var(--bg-main); 
+            color: var(--text-main); 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            text-align: center; 
+            padding: 0; 
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .app-header {
+            width: 100%;
+            background: rgba(21, 24, 31, 0.8);
+            backdrop-filter: blur(10px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            box-sizing: border-box;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .app-header h1 { font-size: 1.2rem; margin: 0; color: var(--accent); font-weight: 800; }
+        
+        .back-btn {
+            background: #232833;
+            color: var(--text-main);
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 400px;
+            padding: 15px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            text-align: right;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 5px;
+        }
+
+        th, td {
+            padding: 10px 8px;
+            font-size: 0.9rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            text-align: right;
+        }
+
+        th { color: var(--accent); font-weight: 700; }
+        td:nth-child(3), th:nth-child(3) { text-align: left; font-variant-numeric: tabular-nums; }
+
+        .clear-btn {
+            background: #232833;
+            color: var(--danger);
+            border: none;
+            padding: 12px;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .empty-msg {
+            color: var(--text-muted);
+            padding: 20px;
+            font-size: 0.95rem;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="app-header">
+        <h1>לוח תוצאות</h1>
+        <a href="index.html" class="back-btn">⬅ חזרה לטיימר</a>
+    </header>
+    
+    <div class="container">
+        <div class="card">
+            <div style="font-weight: 700; margin-bottom: 10px; color: var(--accent);">תוצאות שמורות לפי מהירות:</div>
+            <div id="tableContainer">
+                <div class="empty-msg">טוען תוצאות...</div>
+            </div>
+            <button class="clear-btn" onclick="clearLeaderboard()">🗑️ איפוס לוח תוצאות</button>
+        </div>
+    </div>
+
+    <script>
+        function loadLeaderboard() {
+            let history = JSON.parse(localStorage.getItem('bikeTimerLeaderboard') || '[]');
+            const container = document.getElementById('tableContainer');
+
+            if (history.length === 0) {
+                container.innerHTML = '<div class="empty-msg">אין עדיין תוצאות שמורות. צא לרכב ותקבע זמן!</div>';
+                return;
+            }
+
+            // מיון התוצאות מהמהיר ביותר (זמן נמוך) לאיטי
+            history.sort((a, b) => a.time - b.time);
+
+            let html = `<table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>רוכב / סשן</th>
+                        <th>זמן</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+            history.forEach((item, index) => {
+                let medal = index === 0 ? '🥇 ' : index === 1 ? '🥈 ' : index === 2 ? '🥉 ' : `${index + 1}. `;
+                html += `<tr>
+                    <td>${medal}</td>
+                    <td><b>${item.competitor}</b><br><span style="font-size:0.75rem; color:var(--text-muted);">${item.session}</span></td>
+                    <td><b style="color:var(--accent);">${item.time.toFixed(3)}</b></td>
+                </tr>`;
+            });
+
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+        }
+
+        function clearLeaderboard() {
+            if (confirm("בטוח שאתה רוצה למחוק את כל היסטוריית התוצאות?")) {
+                localStorage.removeItem('bikeTimerLeaderboard');
+                loadLeaderboard();
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', loadLeaderboard);
+    </script>
+</body>
+</html>
