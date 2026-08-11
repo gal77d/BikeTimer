@@ -618,6 +618,7 @@
                     return;
                 } else if (isRunning) {
                     const elapsedCheck = (performance.now() - startTime) / 1000;
+                    // הגנה: רק במצב אוטומטי, אי אפשר לעצור לפני שעברו 3 שניות מרגע הזינוק
                     if (elapsedCheck < 3.0) { 
                         lastFrameData = currentData; 
                         requestAnimationFrame(runAutoMotionDetection); 
@@ -685,12 +686,7 @@
             }
 
             if (diffCount > 15) {
-                if (elapsedCheck < 3.0) {
-                    lastFrameData = currentData;
-                    requestAnimationFrame(runDetectionTimer);
-                    return;
-                }
-
+                // במצב רגיל (לא אוטומטי) אין מגבלת 3 שניות, זה עוצר מיד כשחוצים
                 isRunning = false; playFinalBeep();
                 saveResult(timerDisplay.innerText);
 
