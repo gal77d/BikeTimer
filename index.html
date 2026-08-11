@@ -186,7 +186,7 @@
             <div class="input-row">
                 <div style="flex: 1;">
                     <label class="label-sm">שם סשן:</label>
-                    <input type="text" id="sessionName" placeholder="למשל: ראן 1" oninput="saveSettings()">
+                    <input type="text" id="sessionName" placeholder="למשל: יער" oninput="saveSettings()">
                 </div>
                 <div style="flex: 1;">
                     <label class="label-sm">שם המתחרה:</label>
@@ -618,7 +618,6 @@
                     return;
                 } else if (isRunning) {
                     const elapsedCheck = (performance.now() - startTime) / 1000;
-                    // חובה לפחות 3 שניות לפני שאפשר לעצור את הטיימר
                     if (elapsedCheck < 3.0) { 
                         lastFrameData = currentData; 
                         requestAnimationFrame(runAutoMotionDetection); 
@@ -686,7 +685,6 @@
             }
 
             if (diffCount > 15) {
-                // חובה לפחות 3 שניות לפני סיום
                 if (elapsedCheck < 3.0) {
                     lastFrameData = currentData;
                     requestAnimationFrame(runDetectionTimer);
