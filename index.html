@@ -221,10 +221,10 @@
                 <div style="flex: 1; text-align: right;">
                     <label class="label-sm">השהייה ראשונית:</label>
                     <select id="delaySelect" onchange="saveSettings()">
-                        <option value="auto_motion" selected>אוטומטי (לפי תנועה)</option>
+                        <option value="auto_motion">אוטומטי (לפי תנועה)</option>
                         <option value="5">5 שניות</option>
                         <option value="10">10 שניות</option>
-                        <option value="15">15 שניות</option>
+                        <option value="15" selected>15 שניות</option>
                         <option value="20">20 שניות</option>
                         <option value="30">30 שניות</option>
                         <option value="60">דקה אחת (60 ש')</option>
@@ -340,7 +340,7 @@
                     video.srcObject = stream; 
                     video.play();
                     cameraActive = true;
-                    document.getElementById('camBtn').style.display = 'none'; // מחביא את הכפתור אחרי שהופעל
+                    document.getElementById('camBtn').style.display = 'none';
                     statusDisplay.innerText = "מוכן לזינוק";
                 })
                 .catch(err => { 
@@ -488,29 +488,17 @@
             if (countdownTimer) clearInterval(countdownTimer);
 
             if (delaySetting === "auto_motion") {
-                let prepDelay = 7;
-                statusDisplay.innerText = `התארגנות — מתחיל בעוד ${prepDelay} ש'...`;
-                speakText(prepDelay.toString()); 
-                countdownTimer = setInterval(() => {
-                    prepDelay--;
-                    if (prepDelay > 0) {
-                        statusDisplay.innerText = `התארגנות — מתחיל בעוד ${prepDelay} ש'...`;
-                        if (prepDelay <= 10) speakText(prepDelay.toString());
-                    } else {
-                        clearInterval(countdownTimer);
-                        playFinalBeep();
-                        activateMotionSensor();
-                    }
-                }, 1000);
+                activateMotionSensor();
             } else {
                 let delay = parseInt(delaySetting);
                 statusDisplay.innerText = `הכנה — מתחיל בעוד: ${delay} ש'...`;
-                if (delay <= 10) speakText(delay.toString());
+                speakText(delay.toString());
+                
                 countdownTimer = setInterval(() => {
                     delay--;
                     if (delay > 0) {
                         statusDisplay.innerText = `הכנה — מתחיל בעוד: ${delay} ש'...`;
-                        if (delay <= 10) speakText(delay.toString());
+                        speakText(delay.toString());
                     } else {
                         clearInterval(countdownTimer);
                         playFinalBeep();
@@ -592,11 +580,11 @@
                             playFinalBeep(); activateMotionSensor();
                         } else {
                             let gapCounter = gapSeconds;
-                            if (gapCounter <= 10 && gapCounter > 0) speakText(gapCounter.toString());
+                            speakText(gapCounter.toString());
                             let gapTimer = setInterval(() => {
                                 gapCounter--;
                                 if (gapCounter > 0) {
-                                    if (gapCounter <= 10) speakText(gapCounter.toString());
+                                    speakText(gapCounter.toString());
                                     statusDisplay.innerText = `מתחיל רוכב ${currentRider} בעוד ${gapCounter} ש'...`;
                                 } else {
                                     clearInterval(gapTimer); playFinalBeep();
@@ -650,11 +638,14 @@
                         playFinalBeep(); if (!isFinished) handleTrackDelay(beginRunTimer);
                     } else {
                         let gapCounter = gapSeconds;
-                        if (gapCounter <= 10 && gapCounter > 0) speakText(gapCounter.toString());
+                        speakText(gapCounter.toString());
                         let gapTimer = setInterval(() => {
                             gapCounter--;
-                            if (gapCounter > 0) { if (gapCounter <= 10) speakText(gapCounter.toString()); } 
-                            else { clearInterval(gapTimer); playFinalBeep(); if (!isFinished) handleTrackDelay(beginRunTimer); }
+                            if (gapCounter > 0) { 
+                                speakText(gapCounter.toString()); 
+                            } else { 
+                                clearInterval(gapTimer); playFinalBeep(); if (!isFinished) handleTrackDelay(beginRunTimer); 
+                            }
                         }, 1000);
                     }
                 } else { isFinished = true; statusDisplay.innerText = "סיימנו!"; }
