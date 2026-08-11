@@ -89,7 +89,7 @@
         th { color: var(--accent); font-weight: 700; }
         td:nth-child(3), th:nth-child(3) { text-align: left; font-variant-numeric: tabular-nums; }
 
-        .clear-btn {
+        .clear-all-btn {
             background: #232833;
             color: var(--danger);
             border: none;
@@ -109,17 +109,34 @@
             text-align: center;
         }
 
+        .session-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid rgba(0, 255, 204, 0.2);
+            padding-bottom: 5px;
+            margin-bottom: 8px;
+        }
+
         .session-title {
             font-size: 1.1rem;
             font-weight: 800;
             color: var(--accent);
-            margin-bottom: 8px;
             display: flex;
             align-items: center;
             gap: 6px;
-            border-bottom: 2px solid rgba(0, 255, 204, 0.2);
-            padding-bottom: 5px;
         }
+
+        .delete-session-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 4px;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        .delete-session-btn:hover { opacity: 1; }
     </style>
 </head>
 <body>
@@ -133,7 +150,7 @@
         <div id="sessionsContainer">
             <div class="empty-msg">טוען תוצאות...</div>
         </div>
-        <button class="clear-btn" onclick="clearLeaderboard()">🗑️ איפוס כל לוחות התוצאות</button>
+        <button class="clear-all-btn" onclick="clearAllLeaderboard()">🗑️ איפוס כל הנתונים</button>
     </div>
 
     <script>
@@ -146,7 +163,6 @@
                 return;
             }
 
-            // קיבוץ התוצאות לפי שם הסשן
             let grouped = {};
             history.forEach(item => {
                 let sessionName = item.session && item.session.trim() !== "" ? item.session : "אימון כללי";
@@ -158,13 +174,14 @@
 
             let html = '';
 
-            // מעבר על כל סשן ויצירת טבלה נפרדת עבורו
             for (let sessionName in grouped) {
-                // מיון התוצאות בסשן מהמהיר לאיטי
                 grouped[sessionName].sort((a, b) => a.time - b.time);
 
                 html += `<div class="card">
-                    <div class="session-title">🌲 ${sessionName}</div>
+                    <div class="session-header">
+                        <div class="session-title">🌲 ${sessionName}</div>
+                        <button class="delete-session-btn" onclick="deleteSession('${sessionName}')" title="מחק סשן זה">🗑️</button>
+                    </div>
                     <table>
                         <thead>
                             <tr>
@@ -190,7 +207,20 @@
             container.innerHTML = html;
         }
 
-        function clearLeaderboard() {
+        function deleteSession(sessionName) {
+            if (confirm(`בטוח שאתה רוצה למחוק את כל התוצאות של סשן "${sessionName}"?`)) {
+                let history = JSON.parse(localStorage.getItem('bikeTimerLeaderboard') || '[]');
+                // מסננים החוצה רק את הסשן הנבחר
+                let updatedHistory = history.filter(item => {
+                    let name = item.session && item.session.trim() !== "" ? item.session : "אימון כללי";
+                    return name !== sessionName;
+                });
+                localStorage.setItem('bikeTimerLeaderboard', JSON.stringify(updatedHistory));
+                loadLeaderboard();
+            }
+        }
+
+        function clearAllLeaderboard() {
             if (confirm("בטוח שאתה רוצה למחוק את כל היסטוריית התוצאות מכל המסלולים?")) {
                 localStorage.removeItem('bikeTimerLeaderboard');
                 loadLeaderboard();
