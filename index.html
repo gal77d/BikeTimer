@@ -207,6 +207,13 @@
         </div>
 
         <div class="card">
+            <div style="margin-bottom: 10px; text-align: right;">
+                <label class="label-sm">סגנון ספירה לאחור:</label>
+                <select id="countdownMode" onchange="saveSettings()">
+                    <option value="full" selected>ספירה מלאה בקול רם מתחילת הזמן</option>
+                    <option value="last10">ביפים קטנים + 10 שניות אחרונות בקול</option>
+                </select>
+            </div>
             <div style="display: flex; gap: 10px;">
                 <div style="flex: 1; text-align: right;">
                     <label class="label-sm">כמות רוכבים:</label>
@@ -278,6 +285,8 @@
         let isFinished = false;
         let lastFrameData = null;
         let countdownTimer = null;
+        let gapTimerInstance = null;
+        let trackTimerInstance = null;
         let currentRider = 1;
         let totalRiders = 1;
         let cameraActive = false;
@@ -308,6 +317,24 @@
                     utterance.pitch = 1.0;
                     window.speechSynthesis.speak(utterance);
                 }
+            } catch(e) {}
+        }
+
+        function playTickBeep() {
+            try {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                
+                osc.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.08);
             } catch(e) {}
         }
 
@@ -352,6 +379,7 @@
             const settings = {
                 sessionName: document.getElementById('sessionName').value,
                 competitorName: document.getElementById('competitorName').value,
+                countdownMode: document.getElementById('countdownMode').value,
                 ridersCount: document.getElementById('ridersCount').value,
                 delaySelect: document.getElementById('delaySelect').value,
                 gapSelect: document.getElementById('gapSelect').value,
@@ -365,6 +393,7 @@
             if (saved) {
                 if (saved.sessionName !== undefined) document.getElementById('sessionName').value = saved.sessionName;
                 if (saved.competitorName !== undefined) document.getElementById('competitorName').value = saved.competitorName;
+                if (saved.countdownMode !== undefined) document.getElementById('countdownMode').value = saved.countdownMode;
                 if (saved.ridersCount !== undefined) document.getElementById('ridersCount').value = saved.ridersCount;
                 if (saved.delaySelect !== undefined) document.getElementById('delaySelect').value = saved.delaySelect;
                 if (saved.gapSelect !== undefined) document.getElementById('gapSelect').value = saved.gapSelect;
@@ -491,14 +520,24 @@
                 activateMotionSensor();
             } else {
                 let delay = parseInt(delaySetting);
+                let mode = document.getElementById('countdownMode').value;
+
                 statusDisplay.innerText = `הכנה — מתחיל בעוד: ${delay} ש'...`;
-                speakText(delay.toString());
-                
+                if (mode === 'full') speakText(delay.toString());
+                else if (delay <= 10) playTickBeep();
+
                 countdownTimer = setInterval(() => {
                     delay--;
                     if (delay > 0) {
                         statusDisplay.innerText = `הכנה — מתחיל בעוד: ${delay} ש'...`;
-                        speakText(delay.toString());
+                        if (mode === 'full') {
+                            speakText(delay.toString());
+                        } else if (mode === 'last10' && delay <= 12) {
+                            if (delay > 2) {
+                                playTickBeep();
+                                if (delay <= 10) speakText(delay.toString());
+                            }
+                        }
                     } else {
                         clearInterval(countdownTimer);
                         playFinalBeep();
@@ -512,15 +551,20 @@
             let trackDelay = parseInt(document.getElementById('trackDelaySelect').value);
             if (trackDelay > 0) {
                 let trackCounter = trackDelay;
+                let mode = document.getElementById('countdownMode').value;
+
                 statusDisplay.innerText = `זינוק בעוד ${trackCounter} ש'...`;
-                speakText(trackCounter.toString());
-                let trackTimer = setInterval(() => {
+                if (mode === 'full') speakText(trackCounter.toString());
+                else playTickBeep();
+
+                trackTimerInstance = setInterval(() => {
                     trackCounter--;
                     if (trackCounter > 0) {
-                        speakText(trackCounter.toString());
+                        if (mode === 'full') speakText(trackCounter.toString());
+                        else playTickBeep();
                         statusDisplay.innerText = `זינוק בעוד ${trackCounter} ש'...`;
                     } else {
-                        clearInterval(trackTimer);
+                        clearInterval(trackTimerInstance);
                         playFinalBeep();
                         onCompleteCallback();
                     }
@@ -575,19 +619,27 @@
                     if (currentRider < totalRiders) {
                         currentRider++;
                         let gapSeconds = parseInt(document.getElementById('gapSelect').value);
+                        let mode = document.getElementById('countdownMode').value;
                         statusDisplay.innerText = `מתחיל רוכב ${currentRider} בעוד ${gapSeconds} ש'...`;
                         if (gapSeconds === 0) {
                             playFinalBeep(); activateMotionSensor();
                         } else {
                             let gapCounter = gapSeconds;
-                            speakText(gapCounter.toString());
-                            let gapTimer = setInterval(() => {
+                            if (mode === 'full') speakText(gapCounter.toString());
+                            else if (gapCounter > 2) playTickBeep();
+
+                            gapTimerInstance = setInterval(() => {
                                 gapCounter--;
                                 if (gapCounter > 0) {
-                                    speakText(gapCounter.toString());
+                                    if (mode === 'full') {
+                                        speakText(gapCounter.toString());
+                                    } else if (mode === 'last10' && gapCounter > 2) {
+                                        playTickBeep();
+                                        if (gapCounter <= 10) speakText(gapCounter.toString());
+                                    }
                                     statusDisplay.innerText = `מתחיל רוכב ${currentRider} בעוד ${gapCounter} ש'...`;
                                 } else {
-                                    clearInterval(gapTimer); playFinalBeep();
+                                    clearInterval(gapTimerInstance); playFinalBeep();
                                     if (document.getElementById('delaySelect').value === "auto_motion") handleTrackDelay(activateMotionSensor);
                                 }
                             }, 1000);
@@ -634,17 +686,25 @@
                 if (currentRider < totalRiders) {
                     currentRider++;
                     let gapSeconds = parseInt(document.getElementById('gapSelect').value);
+                    let mode = document.getElementById('countdownMode').value;
                     if (gapSeconds === 0) {
                         playFinalBeep(); if (!isFinished) handleTrackDelay(beginRunTimer);
                     } else {
                         let gapCounter = gapSeconds;
-                        speakText(gapCounter.toString());
-                        let gapTimer = setInterval(() => {
+                        if (mode === 'full') speakText(gapCounter.toString());
+                        else if (gapCounter > 2) playTickBeep();
+
+                        gapTimerInstance = setInterval(() => {
                             gapCounter--;
                             if (gapCounter > 0) { 
-                                speakText(gapCounter.toString()); 
+                                if (mode === 'full') {
+                                    speakText(gapCounter.toString());
+                                } else if (mode === 'last10' && gapCounter > 2) {
+                                    playTickBeep();
+                                    if (gapCounter <= 10) speakText(gapCounter.toString());
+                                }
                             } else { 
-                                clearInterval(gapTimer); playFinalBeep(); if (!isFinished) handleTrackDelay(beginRunTimer); 
+                                clearInterval(gapTimerInstance); playFinalBeep(); if (!isFinished) handleTrackDelay(beginRunTimer); 
                             }
                         }, 1000);
                     }
@@ -670,9 +730,18 @@
         }
 
         function resetTimer() {
-            isRunning = false; isWaitingForStartMotion = false; isFinished = false; currentRider = 1;
+            isRunning = false; 
+            isWaitingForStartMotion = false; 
+            isFinished = false; 
+            currentRider = 1;
+            
             if (countdownTimer) clearInterval(countdownTimer);
-            timerDisplay.innerText = "00.000"; statusDisplay.innerText = cameraActive ? "מוכן לזינוק" : "אנא הפעל מצלמה תחילה";
+            if (gapTimerInstance) clearInterval(gapTimerInstance);
+            if (trackTimerInstance) clearInterval(trackTimerInstance);
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+
+            timerDisplay.innerText = "00.000"; 
+            statusDisplay.innerText = cameraActive ? "מוכן לזינוק" : "אנא הפעל מצלמה תחילה";
             drawPreview();
         }
     </script>
