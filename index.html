@@ -227,7 +227,7 @@
     <video id="webcam" autoplay playsinline></video>
     
     <div class="canvases-container" id="canvasesContainer">
-        <canvas id="canvas1"></canvas>
+        <canvas id="canvas0"></canvas>
     </div>
 
     <div id="leaderboard" style="margin-top: 15px;">
@@ -253,7 +253,7 @@
         let totalRiders = 1;
 
         let cropsInfo = JSON.parse(localStorage.getItem('bikeTimerCrops')) || [{ left: 0.0, right: 1.0, top: 0.5, bottom: 1.0 }];
-        let activeDrag = null; // { riderIdx, type }
+        let activeDrag = null;
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
@@ -394,13 +394,12 @@
             }
         }
 
-        video.addEventListener('loadedmetadata', () => {
-            updateRidersLayout();
-            drawLiveFeed();
-        });
-
         navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-            .then(stream => { video.srcObject = stream; })
+            .then(stream => { 
+                video.srcObject = stream; 
+                video.play();
+                requestAnimationFrame(drawLiveFeed);
+            })
             .catch(err => { statusDisplay.innerText = "שגיאה בגישה למצלמה!"; });
 
         function setCropPreset(type) {
@@ -508,11 +507,31 @@
         }
 
         function drawLiveFeed() {
-            if (!video.videoWidth) return;
-            if (!isRunning && !isWaitingForStartMotion && !isFinished) {
-                drawPreviews();
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                if (!canvasWidthMatchesVideo()) {
+                    updateCanvasesResolution();
+                }
+                if (!isRunning && !isWaitingForStartMotion && !isFinished) {
+                    drawPreviews();
+                }
             }
             requestAnimationFrame(drawLiveFeed);
+        }
+
+        function canvasWidthMatchesVideo() {
+            let c = document.getElementById('canvas_0');
+            return c && c.width === (video.videoWidth || 300);
+        }
+
+        function updateCanvasesResolution() {
+            totalRiders = parseInt(document.getElementById('ridersCount').value);
+            for (let i = 0; i < totalRiders; i++) {
+                let canvas = document.getElementById(`canvas_${i}`);
+                if (canvas) {
+                    canvas.width = video.videoWidth || 300;
+                    canvas.height = video.videoHeight || 150;
+                }
+            }
         }
 
         function drawPreviews() {
@@ -558,8 +577,6 @@
             totalRiders = parseInt(document.getElementById('ridersCount').value);
             currentRider = 1;
             isFinished = false;
-            
-            speakText("מתחיל סשן");
 
             if (countdownTimer) clearInterval(countdownTimer);
 
