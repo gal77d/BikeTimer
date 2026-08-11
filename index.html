@@ -247,9 +247,20 @@
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
+        function unlockAudio() {
+            try {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                if ('speechSynthesis' in window) {
+                    let u = new SpeechSynthesisUtterance('');
+                    u.volume = 0;
+                    window.speechSynthesis.speak(u);
+                }
+            } catch(e) {}
+        }
+
         function speakText(text) {
             try {
-                if ('speechSynthesis' in window) {
+                if ('speechSynthesis' in window && text !== "") {
                     window.speechSynthesis.cancel();
                     const utterance = new SpeechSynthesisUtterance(text);
                     utterance.lang = 'he-IL';
@@ -257,6 +268,46 @@
                     utterance.pitch = 1.0;
                     window.speechSynthesis.speak(utterance);
                 }
+            } catch(e) {}
+        }
+
+        function playCountdownBeep(timeLeft) {
+            try {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                
+                // קודם כל מדבר
+                speakText(timeLeft.toString());
+
+                // ואז מצפצף
+                const osc = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                osc.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                let freq = 600;
+                let duration = 0.15;
+                let volume = 0.4;
+
+                if (timeLeft > 3 && timeLeft <= 10) {
+                    freq = 700;
+                    duration = 0.15;
+                    volume = 0.4;
+                } else if (timeLeft === 3 || timeLeft === 2) {
+                    freq = 950;
+                    duration = 0.2;
+                    volume = 0.6;
+                } else if (timeLeft === 1) {
+                    freq = 1150;
+                    duration = 0.25;
+                    volume = 0.7;
+                }
+
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
             } catch(e) {}
         }
 
@@ -452,6 +503,9 @@
         function startSession() {
             if (isRunning || isWaitingForStartMotion) return;
             
+            // "משחרר" את האודיו לדפדפנים בטלפון מיד בלחיצה הראשונה
+            unlockAudio();
+
             let delaySetting = document.getElementById('delaySelect').value;
             totalRiders = parseInt(document.getElementById('ridersCount').value);
             currentRider = 1;
@@ -466,7 +520,7 @@
                 countdownTimer = setInterval(() => {
                     prepDelay--;
                     if (prepDelay <= 10 && prepDelay >= 0) {
-                        speakText((prepDelay + 1).toString());
+                        playCountdownBeep(prepDelay + 1);
                     }
 
                     if (prepDelay > 0) {
@@ -484,7 +538,7 @@
                 countdownTimer = setInterval(() => {
                     delay--;
                     if (delay <= 10 && delay >= 0) {
-                        speakText((delay + 1).toString());
+                        playCountdownBeep(delay + 1);
                     }
 
                     if (delay > 0) {
@@ -513,7 +567,7 @@
                 let trackTimer = setInterval(() => {
                     trackCounter--;
                     if (trackCounter > 0) {
-                        speakText(trackCounter.toString());
+                        playCountdownBeep(trackCounter);
                         statusDisplay.innerText = `צא למסלול! זינוק בעוד ${trackCounter} שניות...`;
                     } else {
                         clearInterval(trackTimer);
@@ -597,7 +651,6 @@
                         currentRider++;
                         let gapSeconds = parseInt(document.getElementById('gapSelect').value);
                         statusDisplay.innerText = `רוכב ${currentRider - 1} סיים! מתחיל רוכב ${currentRider} בעוד ${gapSeconds} שניות...`;
-                        speakText(`רוכב קודם סיים. מתחיל רוכב ${currentRider}`);
                         
                         if (gapSeconds === 0) {
                             playFinalBeep();
@@ -606,10 +659,11 @@
                             let gapCounter = gapSeconds;
                             let gapTimer = setInterval(() => {
                                 gapCounter--;
-                                if (gapCounter <= 10 && gapCounter > 0) speakText(gapCounter.toString());
+                                if (gapCounter <= 10 && gapCounter > 0) playCountdownBeep(gapCounter);
                                 if (gapCounter <= 0) {
                                     clearInterval(gapTimer);
                                     playFinalBeep();
+                                    
                                     let delaySetting = document.getElementById('delaySelect').value;
                                     if (delaySetting === "auto_motion") {
                                         let trackDelay = parseInt(document.getElementById('trackDelaySelect').value);
@@ -719,7 +773,7 @@
                         let gapCounter = gapSeconds;
                         let gapTimer = setInterval(() => {
                             gapCounter--;
-                            if (gapCounter <= 10 && gapCounter > 0) speakText(gapCounter.toString());
+                            if (gapCounter <= 10 && gapCounter > 0) playCountdownBeep(gapCounter);
                             if (gapCounter <= 0) {
                                 clearInterval(gapTimer);
                                 playFinalBeep();
