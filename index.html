@@ -271,44 +271,6 @@
             } catch(e) {}
         }
 
-        function playCountdownBeep(timeLeft) {
-            try {
-                if (audioCtx.state === 'suspended') audioCtx.resume();
-                
-                speakText(timeLeft.toString());
-
-                const osc = audioCtx.createOscillator();
-                const gainNode = audioCtx.createGain();
-                
-                osc.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
-                
-                let freq = 600;
-                let duration = 0.15;
-                let volume = 0.4;
-
-                if (timeLeft > 3 && timeLeft <= 10) {
-                    freq = 700;
-                    duration = 0.15;
-                    volume = 0.4;
-                } else if (timeLeft === 3 || timeLeft === 2) {
-                    freq = 950;
-                    duration = 0.2;
-                    volume = 0.6;
-                } else if (timeLeft === 1) {
-                    freq = 1150;
-                    duration = 0.25;
-                    volume = 0.7;
-                }
-
-                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-                gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
-                
-                osc.start();
-                osc.stop(audioCtx.currentTime + duration);
-            } catch(e) {}
-        }
-
         function playFinalBeep() {
             try {
                 if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -513,15 +475,13 @@
             if (delaySetting === "auto_motion") {
                 let prepDelay = 7;
                 statusDisplay.innerText = `התארגנות רוכב ${currentRider} — מתחיל בעוד ${prepDelay} שניות...`;
+                speakText(prepDelay.toString()); // מתחיל לדבר ישר
                 
                 countdownTimer = setInterval(() => {
                     prepDelay--;
-                    if (prepDelay <= 10 && prepDelay >= 0) {
-                        playCountdownBeep(prepDelay + 1);
-                    }
-
                     if (prepDelay > 0) {
                         statusDisplay.innerText = `התארגנות רוכב ${currentRider} — מתחיל בעוד ${prepDelay} שניות...`;
+                        if (prepDelay <= 10) speakText(prepDelay.toString());
                     } else {
                         clearInterval(countdownTimer);
                         playFinalBeep();
@@ -531,15 +491,13 @@
             } else {
                 let delay = parseInt(delaySetting);
                 statusDisplay.innerText = `הכנה לרוכב 1 - מתחיל בעוד: ${delay} שניות...`;
+                if (delay <= 10) speakText(delay.toString()); // מתחיל לדבר ישר
                 
                 countdownTimer = setInterval(() => {
                     delay--;
-                    if (delay <= 10 && delay >= 0) {
-                        playCountdownBeep(delay + 1);
-                    }
-
                     if (delay > 0) {
                         statusDisplay.innerText = `הכנה לרוכב 1 - מתחיל בעוד: ${delay} שניות...`;
+                        if (delay <= 10) speakText(delay.toString());
                     } else {
                         clearInterval(countdownTimer);
                         playFinalBeep();
@@ -554,10 +512,12 @@
             if (trackDelay > 0) {
                 let trackCounter = trackDelay;
                 statusDisplay.innerText = `צא למסלול! זינוק בעוד ${trackCounter} שניות...`;
+                speakText(trackCounter.toString()); // מתחיל לדבר ישר
+                
                 let trackTimer = setInterval(() => {
                     trackCounter--;
                     if (trackCounter > 0) {
-                        playCountdownBeep(trackCounter);
+                        speakText(trackCounter.toString());
                         statusDisplay.innerText = `צא למסלול! זינוק בעוד ${trackCounter} שניות...`;
                     } else {
                         clearInterval(trackTimer);
@@ -642,10 +602,14 @@
                             activateMotionSensor();
                         } else {
                             let gapCounter = gapSeconds;
+                            if (gapCounter <= 10 && gapCounter > 0) speakText(gapCounter.toString()); // מתחיל ישר
+                            
                             let gapTimer = setInterval(() => {
                                 gapCounter--;
-                                if (gapCounter <= 10 && gapCounter > 0) playCountdownBeep(gapCounter);
-                                if (gapCounter <= 0) {
+                                if (gapCounter > 0) {
+                                    if (gapCounter <= 10) speakText(gapCounter.toString());
+                                    statusDisplay.innerText = `רוכב ${currentRider - 1} סיים! מתחיל רוכב ${currentRider} בעוד ${gapCounter} שניות...`;
+                                } else {
                                     clearInterval(gapTimer);
                                     playFinalBeep();
                                     
@@ -745,10 +709,14 @@
                         }
                     } else {
                         let gapCounter = gapSeconds;
+                        if (gapCounter <= 10 && gapCounter > 0) speakText(gapCounter.toString()); // מתחיל ישר
+                        
                         let gapTimer = setInterval(() => {
                             gapCounter--;
-                            if (gapCounter <= 10 && gapCounter > 0) playCountdownBeep(gapCounter);
-                            if (gapCounter <= 0) {
+                            if (gapCounter > 0) {
+                                if (gapCounter <= 10) speakText(gapCounter.toString());
+                                statusDisplay.innerText = `רוכב ${currentRider - 1} סיים! מתחיל רוכב ${currentRider} בעוד ${gapCounter} שניות...`;
+                            } else {
                                 clearInterval(gapTimer);
                                 playFinalBeep();
                                 if (!isFinished) {
