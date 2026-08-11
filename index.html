@@ -2,227 +2,245 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Bike Timer Pro</title>
     <style>
+        :root {
+            --bg-main: #0b0d10;
+            --bg-card: #15181f;
+            --accent: #00ffcc;
+            --accent-glow: rgba(0, 255, 204, 0.3);
+            --text-main: #ffffff;
+            --text-muted: #8b95a5;
+            --danger: #ff4d4d;
+        }
+
         body { 
-            background: #0f1115; 
-            color: #ffffff; 
-            font-family: system-ui, -apple-system, sans-serif; 
+            background: var(--bg-main); 
+            color: var(--text-main); 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
             text-align: center; 
-            padding: 10px; 
+            padding: 0; 
             margin: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        h1 { font-size: 1.5rem; margin: 10px 0; color: #00ffcc; }
+        /* App Top Bar */
+        .app-header {
+            width: 100%;
+            background: rgba(21, 24, 31, 0.8);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            box-sizing: border-box;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .app-header h1 { font-size: 1.2rem; margin: 0; color: var(--accent); font-weight: 800; letter-spacing: 0.5px; }
+        
+        .leaderboard-btn {
+            background: #232833;
+            color: var(--text-main);
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            transition: 0.2s;
+        }
+        .leaderboard-btn:active { transform: scale(0.95); background: #2d3342; }
+
+        .container {
+            width: 100%;
+            max-width: 400px;
+            padding: 15px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
 
         .card {
-            background: #181c24;
-            border: 1px solid #282f3d;
-            border-radius: 12px;
-            padding: 12px;
-            margin: 8px 0;
-            width: 90%;
-            max-width: 380px;
-            box-sizing: border-box;
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+
+        /* 50/50 Input Row */
+        .input-row {
+            display: flex;
+            gap: 10px;
         }
 
         input[type="text"], select {
             width: 100%;
-            padding: 10px;
-            margin-top: 5px;
-            border-radius: 8px;
-            border: 1px solid #3a4454;
-            background: #111419;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: #0f1115;
             color: white;
-            font-size: 1rem;
+            font-size: 0.95rem;
             box-sizing: border-box;
+            outline: none;
+            transition: border 0.2s;
         }
+        input[type="text"]:focus, select:focus { border-color: var(--accent); }
 
-        .crop-preset-btns {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 8px;
-        }
-
+        .crop-preset-btns { display: flex; gap: 8px; margin-bottom: 8px; }
         .crop-preset-btns button {
             flex: 1;
-            background: #252b3b;
-            color: #00ffcc;
-            border: 1px solid #3a4454;
-            padding: 8px;
-            border-radius: 8px;
+            background: #232833;
+            color: var(--accent);
+            border: none;
+            padding: 10px;
+            border-radius: 10px;
             font-size: 0.85rem;
-            font-weight: bold;
+            font-weight: 600;
             cursor: pointer;
         }
+        .crop-preset-btns button:active { background: var(--accent); color: var(--bg-main); }
 
-        .crop-preset-btns button:active { background: #00ffcc; color: #0f1115; }
-
-        .big-btn-container {
-            display: flex;
-            gap: 10px;
-            width: 90%;
-            max-width: 380px;
-            margin: 10px 0;
-        }
-
+        .big-btn-container { display: flex; gap: 10px; margin-top: 5px; }
         button.action-btn {
             flex: 2;
             background: linear-gradient(135deg, #00ffcc, #00b386);
-            color: #0f1115;
-            font-size: 1.2rem;
-            font-weight: bold;
-            padding: 16px;
+            color: #0b0d10;
+            font-size: 1.1rem;
+            font-weight: 800;
+            padding: 18px;
             border: none;
-            border-radius: 12px;
+            border-radius: 14px;
             cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0, 255, 204, 0.3);
+            box-shadow: 0 6px 20px var(--accent-glow);
         }
-
         button.reset-btn {
             flex: 1;
-            background: #ff4444;
-            color: white;
+            background: #232833;
+            color: var(--danger);
             font-size: 1.1rem;
-            font-weight: bold;
-            padding: 16px;
+            font-weight: 800;
+            padding: 18px;
             border: none;
-            border-radius: 12px;
+            border-radius: 14px;
             cursor: pointer;
-            box-shadow: 0 4px 15px rgba(255, 68, 68, 0.3);
         }
+        button:active { transform: scale(0.96); }
 
-        button:active { transform: scale(0.97); }
-
-        #timer { font-size: 3rem; font-weight: bold; color: #00ffcc; margin: 5px 0; }
-        #status { font-size: 1rem; color: #ffaa00; margin-bottom: 5px; }
-
-        #leaderboard { 
-            background: #181c24; 
-            border: 1px solid #282f3d; 
-            padding: 10px; 
-            border-radius: 12px; 
-            width: 90%; 
-            max-width: 380px; 
-            box-sizing: border-box;
-        }
-
-        #leaderboard h3 { margin: 0 0 8px 0; font-size: 1rem; }
-        
-        #resultsList { 
-            list-style: none; 
-            padding: 0; 
-            margin: 0 0 10px 0; 
-            max-height: 110px; 
-            overflow-y: auto; 
-            text-align: right;
-            font-size: 0.9rem;
-        }
-
-        #resultsList li { padding: 4px 0; border-bottom: 1px solid #222834; }
-
-        .clear-btn { background: #333d4f; color: #ccc; font-size: 0.8rem; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; }
+        #timer { font-size: 3.5rem; font-weight: 900; color: var(--accent); margin: 10px 0 0 0; font-variant-numeric: tabular-nums; line-height: 1; }
+        #status { font-size: 0.95rem; color: #ffaa00; font-weight: 500; margin-top: 5px; height: 20px; }
 
         video { display: none; }
         canvas { 
-            width: 90%; 
-            max-width: 380px; 
-            border: 3px solid #00ffcc; 
-            border-radius: 12px; 
+            width: 100%; 
+            border: 2px solid rgba(0, 255, 204, 0.3); 
+            border-radius: 14px; 
             background: #000; 
-            margin-top: 5px; 
             touch-action: none;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
         }
+
+        .label-sm { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; display: block; text-align: right; }
     </style>
 </head>
 <body>
 
-    <h1>Bike Timer Pro 🚲</h1>
+    <header class="app-header">
+        <h1>BikeTimer Pro</h1>
+        <a href="leaderboard.html" class="leaderboard-btn">🏆 לוח תוצאות</a>
+    </header>
     
-    <div class="card">
-        <input type="text" id="sessionName" placeholder="שם הסשן (למשל: ירידה צפונית)" oninput="saveSettings()">
-    </div>
+    <div class="container">
+        <div id="timer">00.000</div>
+        <div id="status">מוכן לזינוק</div>
 
-    <div class="card">
-        <div class="crop-preset-btns">
-            <button onclick="setCropPreset('full')">מסך מלא ⛶</button>
-            <button onclick="setCropPreset('half')">חצי מסך תחתון 🔲</button>
-        </div>
-        <div style="font-size: 0.8rem; color: #aaa; text-align: center;">
-            💡 גרור את המסגרת האדומה עם האצבע כדי לדייק
-        </div>
-    </div>
-
-    <div class="card">
-        <div style="display: flex; gap: 10px;">
-            <div style="flex: 1; text-align: right;">
-                <label style="font-size: 0.8rem;">כמות רוכבים:</label>
-                <select id="ridersCount" onchange="saveSettings()">
-                    <option value="1" selected>רוכב 1</option>
-                    <option value="2">2 רוכבים</option>
-                    <option value="3">3 רוכבים</option>
-                    <option value="4">4 רוכבים</option>
-                    <option value="5">5 רוכבים</option>
-                </select>
-            </div>
-            <div style="flex: 1; text-align: right;">
-                <label style="font-size: 0.8rem;">השהייה ראשונית:</label>
-                <select id="delaySelect" onchange="saveSettings()">
-                    <option value="auto_motion" selected>אוטומטי (תנועה מתחילה ועוצרת)</option>
-                    <option value="5">5 שניות</option>
-                    <option value="10">10 שניות</option>
-                    <option value="15">15 שניות</option>
-                    <option value="20">20 שניות</option>
-                    <option value="30">30 שניות</option>
-                    <option value="60">דקה אחת (60 ש')</option>
-                    <option value="120">2 דקות (120 ש')</option>
-                    <option value="180">3 דקות (180 ש')</option>
-                </select>
+        <div class="card">
+            <div class="input-row">
+                <div style="flex: 1;">
+                    <label class="label-sm">שם סשן/מסלול:</label>
+                    <input type="text" id="sessionName" placeholder="למשל: ראן 1" oninput="saveSettings()">
+                </div>
+                <div style="flex: 1;">
+                    <label class="label-sm">שם המתחרה:</label>
+                    <input type="text" id="competitorName" placeholder="למשל: יוסי" oninput="saveSettings()">
+                </div>
             </div>
         </div>
-        <div style="margin-top: 8px; display: flex; gap: 10px; text-align: right;">
-            <div style="flex: 1;">
-                <label style="font-size: 0.8rem;">השהייה בין רוכבים:</label>
-                <select id="gapSelect" onchange="saveSettings()">
-                    <option value="0">ללא דילאי (0 ש')</option>
-                    <option value="2">2 שניות</option>
-                    <option value="3">3 שניות</option>
-                    <option value="5" selected>5 שניות</option>
-                    <option value="10">10 שניות</option>
-                    <option value="15">15 שניות</option>
-                </select>
+
+        <div class="card">
+            <div class="crop-preset-btns">
+                <button onclick="setCropPreset('full')">מסך מלא ⛶</button>
+                <button onclick="setCropPreset('half')">חצי תחתון 🔲</button>
             </div>
-            <div style="flex: 1;">
-                <label style="font-size: 0.8rem;">דילאי הגעה למסלול:</label>
-                <select id="trackDelaySelect" onchange="saveSettings()">
-                    <option value="0" selected>ללא דילאי הגעה</option>
-                    <option value="1">שנייה אחת</option>
-                    <option value="2">שתי שניות</option>
-                    <option value="3">שלוש שניות</option>
-                </select>
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-align: center;">
+                💡 גרור את המסגרת האדומה באצבע כדי לדייק
+            </div>
+            <canvas id="canvas" style="margin-top: 10px;"></canvas>
+        </div>
+
+        <div class="card">
+            <div style="display: flex; gap: 10px;">
+                <div style="flex: 1; text-align: right;">
+                    <label class="label-sm">כמות רוכבים (רצוף):</label>
+                    <select id="ridersCount" onchange="saveSettings()">
+                        <option value="1" selected>רוכב 1</option>
+                        <option value="2">2 רוכבים</option>
+                        <option value="3">3 רוכבים</option>
+                        <option value="4">4 רוכבים</option>
+                        <option value="5">5 רוכבים</option>
+                    </select>
+                </div>
+                <div style="flex: 1; text-align: right;">
+                    <label class="label-sm">השהייה ראשונית:</label>
+                    <select id="delaySelect" onchange="saveSettings()">
+                        <option value="auto_motion" selected>אוטומטי (לפי תנועה)</option>
+                        <option value="5">5 שניות</option>
+                        <option value="10">10 שניות</option>
+                        <option value="15">15 שניות</option>
+                    </select>
+                </div>
+            </div>
+            <div style="margin-top: 10px; display: flex; gap: 10px; text-align: right;">
+                <div style="flex: 1;">
+                    <label class="label-sm">השהייה בין רוכבים:</label>
+                    <select id="gapSelect" onchange="saveSettings()">
+                        <option value="0">ללא דילאי (0 ש')</option>
+                        <option value="2">2 שניות</option>
+                        <option value="3">3 שניות</option>
+                        <option value="5" selected>5 שניות</option>
+                    </select>
+                </div>
+                <div style="flex: 1;">
+                    <label class="label-sm">דילאי זינוק למסלול:</label>
+                    <select id="trackDelaySelect" onchange="saveSettings()">
+                        <option value="0" selected>ללא</option>
+                        <option value="1">שנייה 1</option>
+                        <option value="2">2 שניות</option>
+                        <option value="3">3 שניות</option>
+                    </select>
+                </div>
             </div>
         </div>
-    </div>
 
-    <div class="big-btn-container">
-        <button class="action-btn" onclick="startSession()">התחל סשן</button>
-        <button class="reset-btn" onclick="resetTimer()">איפוס</button>
-    </div>
-
-    <div id="status">מוכן להתחלה</div>
-    <div id="timer">00.000</div>
-
-    <video id="webcam" autoplay playsinline></video>
-    <canvas id="canvas"></canvas>
-
-    <div id="leaderboard" style="margin-top: 15px;">
-        <h3>תוצאות הסשן הנוכחי</h3>
-        <ul id="resultsList"></ul>
-        <button class="clear-btn" onclick="clearHistory()">מחק היסטוריה</button>
+        <div class="big-btn-container">
+            <button class="action-btn" onclick="startSession()">התחל סשן</button>
+            <button class="reset-btn" onclick="resetTimer()">איפוס</button>
+        </div>
     </div>
 
     <script>
@@ -231,7 +249,6 @@
         const ctx = canvas.getContext('2d', {willReadFrequently: true});
         const timerDisplay = document.getElementById('timer');
         const statusDisplay = document.getElementById('status');
-        const resultsList = document.getElementById('resultsList');
         
         let startTime = 0;
         let isRunning = false;
@@ -290,13 +307,13 @@
         }
 
         window.addEventListener('DOMContentLoaded', () => {
-            loadHistory();
             loadSettings();
         });
 
         function saveSettings() {
             const settings = {
                 sessionName: document.getElementById('sessionName').value,
+                competitorName: document.getElementById('competitorName').value,
                 ridersCount: document.getElementById('ridersCount').value,
                 delaySelect: document.getElementById('delaySelect').value,
                 gapSelect: document.getElementById('gapSelect').value,
@@ -309,6 +326,7 @@
             const saved = JSON.parse(localStorage.getItem('bikeTimerSettings'));
             if (saved) {
                 if (saved.sessionName !== undefined) document.getElementById('sessionName').value = saved.sessionName;
+                if (saved.competitorName !== undefined) document.getElementById('competitorName').value = saved.competitorName;
                 if (saved.ridersCount !== undefined) document.getElementById('ridersCount').value = saved.ridersCount;
                 if (saved.delaySelect !== undefined) document.getElementById('delaySelect').value = saved.delaySelect;
                 if (saved.gapSelect !== undefined) document.getElementById('gapSelect').value = saved.gapSelect;
@@ -324,15 +342,12 @@
 
         navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
             .then(stream => { video.srcObject = stream; })
-            .catch(err => { statusDisplay.innerText = "שגיאה בגישה למצלמה!"; });
+            .catch(err => { statusDisplay.innerText = "שגיאה במצלמה!"; });
 
         function setCropPreset(type) {
             if (isRunning || isWaitingForStartMotion) return;
-            if (type === 'full') {
-                cropInfo = { left: 0.0, right: 1.0, top: 0.0, bottom: 1.0 };
-            } else if (type === 'half') {
-                cropInfo = { left: 0.0, right: 1.0, top: 0.5, bottom: 1.0 };
-            }
+            if (type === 'full') cropInfo = { left: 0.0, right: 1.0, top: 0.0, bottom: 1.0 };
+            else if (type === 'half') cropInfo = { left: 0.0, right: 1.0, top: 0.5, bottom: 1.0 };
             localStorage.setItem('bikeTimerCrop', JSON.stringify(cropInfo));
             drawPreview();
         }
@@ -341,12 +356,7 @@
             let rect = canvas.getBoundingClientRect();
             let clientX = e.touches ? e.touches[0].clientX : e.clientX;
             let clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            let scaleX = canvas.width / rect.width;
-            let scaleY = canvas.height / rect.height;
-            return {
-                x: (clientX - rect.left) * scaleX,
-                y: (clientY - rect.top) * scaleY
-            };
+            return { x: (clientX - rect.left) * (canvas.width / rect.width), y: (clientY - rect.top) * (canvas.height / rect.height) };
         }
 
         canvas.addEventListener('mousedown', startDrag);
@@ -359,15 +369,10 @@
         function startDrag(e) {
             if (isRunning || isWaitingForStartMotion) return;
             let pos = getPointerPos(e);
-            
-            let sx = canvas.width * cropInfo.left;
-            let sy = canvas.height * cropInfo.top;
-            let ex = canvas.width * cropInfo.right;
-            let ey = canvas.height * cropInfo.bottom;
-
-            let touchMargin = 30;
+            let sx = canvas.width * cropInfo.left, sy = canvas.height * cropInfo.top;
+            let ex = canvas.width * cropInfo.right, ey = canvas.height * cropInfo.bottom;
+            let touchMargin = 30, dragging = false;
             activeDrag = { left: false, right: false, top: false, bottom: false, move: false };
-            let dragging = false;
 
             if (Math.abs(pos.x - sx) < touchMargin && pos.y > sy - touchMargin && pos.y < ey + touchMargin) { activeDrag.left = true; dragging = true; }
             if (Math.abs(pos.x - ex) < touchMargin && pos.y > sy - touchMargin && pos.y < ey + touchMargin) { activeDrag.right = true; dragging = true; }
@@ -375,16 +380,11 @@
             if (Math.abs(pos.y - ey) < touchMargin && pos.x > sx - touchMargin && pos.x < ex + touchMargin) { activeDrag.bottom = true; dragging = true; }
 
             if (!dragging && pos.x > sx + touchMargin && pos.x < ex - touchMargin && pos.y > sy + touchMargin && pos.y < ey - touchMargin) {
-                activeDrag.move = true;
-                activeDrag.startX = pos.x;
-                activeDrag.startY = pos.y;
-                activeDrag.origLeft = cropInfo.left;
-                activeDrag.origRight = cropInfo.right;
-                activeDrag.origTop = cropInfo.top;
-                activeDrag.origBottom = cropInfo.bottom;
+                activeDrag.move = true; activeDrag.startX = pos.x; activeDrag.startY = pos.y;
+                activeDrag.origLeft = cropInfo.left; activeDrag.origRight = cropInfo.right;
+                activeDrag.origTop = cropInfo.top; activeDrag.origBottom = cropInfo.bottom;
                 dragging = true;
             }
-
             if (dragging && e.type === 'touchstart') e.preventDefault();
             if (!dragging) activeDrag = null;
         }
@@ -392,53 +392,36 @@
         function onDrag(e) {
             if (!activeDrag) return;
             if (e.type === 'touchmove') e.preventDefault();
-            
-            let pos = getPointerPos(e);
-            let nx = pos.x / canvas.width;
-            let ny = pos.y / canvas.height;
+            let pos = getPointerPos(e), nx = pos.x / canvas.width, ny = pos.y / canvas.height;
             const MIN_SIZE = 0.1;
 
             if (activeDrag.move) {
-                let dx = nx - (activeDrag.startX / canvas.width);
-                let dy = ny - (activeDrag.startY / canvas.height);
-                
-                let width = activeDrag.origRight - activeDrag.origLeft;
-                let height = activeDrag.origBottom - activeDrag.origTop;
-
-                cropInfo.left = Math.max(0, Math.min(activeDrag.origLeft + dx, 1 - width));
-                cropInfo.right = cropInfo.left + width;
-                cropInfo.top = Math.max(0, Math.min(activeDrag.origTop + dy, 1 - height));
-                cropInfo.bottom = cropInfo.top + height;
+                let dx = nx - (activeDrag.startX / canvas.width), dy = ny - (activeDrag.startY / canvas.height);
+                let w = activeDrag.origRight - activeDrag.origLeft, h = activeDrag.origBottom - activeDrag.origTop;
+                cropInfo.left = Math.max(0, Math.min(activeDrag.origLeft + dx, 1 - w));
+                cropInfo.right = cropInfo.left + w;
+                cropInfo.top = Math.max(0, Math.min(activeDrag.origTop + dy, 1 - h));
+                cropInfo.bottom = cropInfo.top + h;
             } else {
-                if (activeDrag.left)   cropInfo.left = Math.max(0, Math.min(nx, cropInfo.right - MIN_SIZE));
-                if (activeDrag.right)  cropInfo.right = Math.min(1, Math.max(nx, cropInfo.left + MIN_SIZE));
-                if (activeDrag.top)    cropInfo.top = Math.max(0, Math.min(ny, cropInfo.bottom - MIN_SIZE));
+                if (activeDrag.left) cropInfo.left = Math.max(0, Math.min(nx, cropInfo.right - MIN_SIZE));
+                if (activeDrag.right) cropInfo.right = Math.min(1, Math.max(nx, cropInfo.left + MIN_SIZE));
+                if (activeDrag.top) cropInfo.top = Math.max(0, Math.min(ny, cropInfo.bottom - MIN_SIZE));
                 if (activeDrag.bottom) cropInfo.bottom = Math.min(1, Math.max(ny, cropInfo.top + MIN_SIZE));
             }
         }
 
-        function endDrag() {
-            if (activeDrag) {
-                localStorage.setItem('bikeTimerCrop', JSON.stringify(cropInfo));
-            }
-            activeDrag = null;
-        }
+        function endDrag() { if (activeDrag) localStorage.setItem('bikeTimerCrop', JSON.stringify(cropInfo)); activeDrag = null; }
 
         function drawLiveFeed() {
             if (!video.videoWidth) return;
-            if (!isRunning && !isWaitingForStartMotion && !isFinished) {
-                drawPreview();
-            }
+            if (!isRunning && !isWaitingForStartMotion && !isFinished) drawPreview();
             requestAnimationFrame(drawLiveFeed);
         }
 
         function drawPreview() {
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            let sx = canvas.width * cropInfo.left;
-            let sy = canvas.height * cropInfo.top;
-            let sw = canvas.width * (cropInfo.right - cropInfo.left);
-            let sh = canvas.height * (cropInfo.bottom - cropInfo.top);
+            let sx = canvas.width * cropInfo.left, sy = canvas.height * cropInfo.top;
+            let sw = canvas.width * (cropInfo.right - cropInfo.left), sh = canvas.height * (cropInfo.bottom - cropInfo.top);
 
             ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
             ctx.fillRect(0, 0, canvas.width, sy); 
@@ -446,41 +429,34 @@
             ctx.fillRect(0, sy, sx, sh); 
             ctx.fillRect(sx + sw, sy, canvas.width - sx - sw, sh);
 
-            ctx.strokeStyle = "#ff4444";
-            ctx.lineWidth = 3;
-            ctx.strokeRect(sx, sy, sw, sh);
+            ctx.strokeStyle = "#ff4444"; ctx.lineWidth = 3; ctx.strokeRect(sx, sy, sw, sh);
 
             if (!isRunning && !isWaitingForStartMotion && !isFinished) {
-                ctx.fillStyle = "#ffffff";
-                let hs = 14; 
-                ctx.fillRect(sx + sw/2 - hs/2, sy - hs/2, hs, hs); 
-                ctx.fillRect(sx + sw/2 - hs/2, sy + sh - hs/2, hs, hs); 
-                ctx.fillRect(sx + sw - hs/2, sy + sh/2 - hs/2, hs, hs); 
-                ctx.fillRect(sx - hs/2, sy + sh/2 - hs/2, hs, hs); 
+                ctx.fillStyle = "#ffffff"; let hs = 14; 
+                ctx.fillRect(sx + sw/2 - hs/2, sy - hs/2, hs, hs); ctx.fillRect(sx + sw/2 - hs/2, sy + sh - hs/2, hs, hs); 
+                ctx.fillRect(sx + sw - hs/2, sy + sh/2 - hs/2, hs, hs); ctx.fillRect(sx - hs/2, sy + sh/2 - hs/2, hs, hs); 
             }
         }
 
         function startSession() {
             if (isRunning || isWaitingForStartMotion) return;
-            
             unlockAudio();
-
+            saveSettings(); // שמירה לפני שמתחילים
+            
             let delaySetting = document.getElementById('delaySelect').value;
             totalRiders = parseInt(document.getElementById('ridersCount').value);
-            currentRider = 1;
-            isFinished = false;
+            currentRider = 1; isFinished = false;
 
             if (countdownTimer) clearInterval(countdownTimer);
 
             if (delaySetting === "auto_motion") {
                 let prepDelay = 7;
-                statusDisplay.innerText = `התארגנות רוכב ${currentRider} — מתחיל בעוד ${prepDelay} שניות...`;
-                speakText(prepDelay.toString()); // מתחיל לדבר ישר
-                
+                statusDisplay.innerText = `התארגנות — מתחיל בעוד ${prepDelay} ש'...`;
+                speakText(prepDelay.toString()); 
                 countdownTimer = setInterval(() => {
                     prepDelay--;
                     if (prepDelay > 0) {
-                        statusDisplay.innerText = `התארגנות רוכב ${currentRider} — מתחיל בעוד ${prepDelay} שניות...`;
+                        statusDisplay.innerText = `התארגנות — מתחיל בעוד ${prepDelay} ש'...`;
                         if (prepDelay <= 10) speakText(prepDelay.toString());
                     } else {
                         clearInterval(countdownTimer);
@@ -490,13 +466,12 @@
                 }, 1000);
             } else {
                 let delay = parseInt(delaySetting);
-                statusDisplay.innerText = `הכנה לרוכב 1 - מתחיל בעוד: ${delay} שניות...`;
-                if (delay <= 10) speakText(delay.toString()); // מתחיל לדבר ישר
-                
+                statusDisplay.innerText = `הכנה — מתחיל בעוד: ${delay} ש'...`;
+                if (delay <= 10) speakText(delay.toString());
                 countdownTimer = setInterval(() => {
                     delay--;
                     if (delay > 0) {
-                        statusDisplay.innerText = `הכנה לרוכב 1 - מתחיל בעוד: ${delay} שניות...`;
+                        statusDisplay.innerText = `הכנה — מתחיל בעוד: ${delay} ש'...`;
                         if (delay <= 10) speakText(delay.toString());
                     } else {
                         clearInterval(countdownTimer);
@@ -511,14 +486,13 @@
             let trackDelay = parseInt(document.getElementById('trackDelaySelect').value);
             if (trackDelay > 0) {
                 let trackCounter = trackDelay;
-                statusDisplay.innerText = `צא למסלול! זינוק בעוד ${trackCounter} שניות...`;
-                speakText(trackCounter.toString()); // מתחיל לדבר ישר
-                
+                statusDisplay.innerText = `זינוק בעוד ${trackCounter} ש'...`;
+                speakText(trackCounter.toString());
                 let trackTimer = setInterval(() => {
                     trackCounter--;
                     if (trackCounter > 0) {
                         speakText(trackCounter.toString());
-                        statusDisplay.innerText = `צא למסלול! זינוק בעוד ${trackCounter} שניות...`;
+                        statusDisplay.innerText = `זינוק בעוד ${trackCounter} ש'...`;
                     } else {
                         clearInterval(trackTimer);
                         playFinalBeep();
@@ -531,26 +505,20 @@
         }
 
         function activateMotionSensor() {
-            statusDisplay.innerText = `ממתין לתנועה של רוכב ${currentRider} — עבור בפריים להתחלה!`;
-            canvas.width = video.videoWidth || 300;
-            canvas.height = video.videoHeight || 150;
+            statusDisplay.innerText = `ממתין לתנועה (רוכב ${currentRider})!`;
+            canvas.width = video.videoWidth || 300; canvas.height = video.videoHeight || 150;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             lastFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            isWaitingForStartMotion = true;
-            runAutoMotionDetection();
+            isWaitingForStartMotion = true; runAutoMotionDetection();
         }
 
         function runAutoMotionDetection() {
             if (!isWaitingForStartMotion && !isRunning) return;
-
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             let currentData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-            let startX = Math.floor(canvas.width * cropInfo.left);
-            let endX = Math.floor(canvas.width * cropInfo.right);
-            let startY = Math.floor(canvas.height * cropInfo.top);
-            let endY = Math.floor(canvas.height * cropInfo.bottom);
-
+            let startX = Math.floor(canvas.width * cropInfo.left), endX = Math.floor(canvas.width * cropInfo.right);
+            let startY = Math.floor(canvas.height * cropInfo.top), endY = Math.floor(canvas.height * cropInfo.bottom);
             let diffCount = 0;
 
             for (let y = startY; y < endY; y += 10) {
@@ -559,217 +527,124 @@
                     let rDiff = Math.abs(currentData.data[i] - lastFrameData.data[i]);
                     let gDiff = Math.abs(currentData.data[i+1] - lastFrameData.data[i+1]);
                     let bDiff = Math.abs(currentData.data[i+2] - lastFrameData.data[i+2]);
-
-                    if ((rDiff + gDiff + bDiff) > 80) {
-                        diffCount++;
-                    }
+                    if ((rDiff + gDiff + bDiff) > 80) diffCount++;
                 }
             }
 
             if (diffCount > 15) {
                 if (isWaitingForStartMotion) {
-                    isWaitingForStartMotion = false;
-                    playFinalBeep();
-                    startTime = performance.now();
-                    isRunning = true;
+                    isWaitingForStartMotion = false; playFinalBeep();
+                    startTime = performance.now(); isRunning = true;
                     statusDisplay.innerText = `רוכב ${currentRider} בדרך!`;
                     lastFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                     requestAnimationFrame(runAutoMotionDetection);
                     return;
                 } else if (isRunning) {
                     const elapsedCheck = (performance.now() - startTime) / 1000;
-                    if (elapsedCheck < 3) {
-                        lastFrameData = currentData;
-                        requestAnimationFrame(runAutoMotionDetection);
-                        return;
-                    }
+                    if (elapsedCheck < 3) { lastFrameData = currentData; requestAnimationFrame(runAutoMotionDetection); return; }
 
-                    isRunning = false;
-                    playFinalBeep();
-                    
-                    let finalTime = timerDisplay.innerText;
-                    let sessionName = document.getElementById('sessionName').value || "סשן";
-                    let recordName = `${sessionName} (רוכב ${currentRider})`;
-                    saveResult(recordName, finalTime);
+                    isRunning = false; playFinalBeep();
+                    saveResult(timerDisplay.innerText);
 
                     if (currentRider < totalRiders) {
                         currentRider++;
                         let gapSeconds = parseInt(document.getElementById('gapSelect').value);
-                        statusDisplay.innerText = `רוכב ${currentRider - 1} סיים! מתחיל רוכב ${currentRider} בעוד ${gapSeconds} שניות...`;
-                        
+                        statusDisplay.innerText = `מתחיל רוכב ${currentRider} בעוד ${gapSeconds} ש'...`;
                         if (gapSeconds === 0) {
-                            playFinalBeep();
-                            activateMotionSensor();
+                            playFinalBeep(); activateMotionSensor();
                         } else {
                             let gapCounter = gapSeconds;
-                            if (gapCounter <= 10 && gapCounter > 0) speakText(gapCounter.toString()); // מתחיל ישר
-                            
+                            if (gapCounter <= 10 && gapCounter > 0) speakText(gapCounter.toString());
                             let gapTimer = setInterval(() => {
                                 gapCounter--;
                                 if (gapCounter > 0) {
                                     if (gapCounter <= 10) speakText(gapCounter.toString());
-                                    statusDisplay.innerText = `רוכב ${currentRider - 1} סיים! מתחיל רוכב ${currentRider} בעוד ${gapCounter} שניות...`;
+                                    statusDisplay.innerText = `מתחיל רוכב ${currentRider} בעוד ${gapCounter} ש'...`;
                                 } else {
-                                    clearInterval(gapTimer);
-                                    playFinalBeep();
-                                    
-                                    let delaySetting = document.getElementById('delaySelect').value;
-                                    if (delaySetting === "auto_motion") {
-                                        handleTrackDelay(activateMotionSensor);
-                                    }
+                                    clearInterval(gapTimer); playFinalBeep();
+                                    if (document.getElementById('delaySelect').value === "auto_motion") handleTrackDelay(activateMotionSensor);
                                 }
                             }, 1000);
                         }
-                    } else {
-                        isFinished = true;
-                        statusDisplay.innerText = "כל הרוכבים סיימו בהצלחה!";
-                    }
+                    } else { isFinished = true; statusDisplay.innerText = "סיימנו!"; }
                     return;
                 }
             }
 
-            if (isRunning) {
-                const elapsed = (performance.now() - startTime) / 1000;
-                timerDisplay.innerText = elapsed.toFixed(3);
-                
-                if (elapsed < 3) {
-                    lastFrameData = currentData;
-                    requestAnimationFrame(runAutoMotionDetection);
-                    return;
-                }
-            }
-
+            if (isRunning) timerDisplay.innerText = ((performance.now() - startTime) / 1000).toFixed(3);
             lastFrameData = currentData;
-            if (isWaitingForStartMotion || isRunning) {
-                requestAnimationFrame(runAutoMotionDetection);
-            }
+            if (isWaitingForStartMotion || isRunning) requestAnimationFrame(runAutoMotionDetection);
         }
 
         function beginRunTimer() {
             if (isFinished) return;
-            statusDisplay.innerText = `ממתין לרוכב ${currentRider} מתוך ${totalRiders}...`;
-            canvas.width = video.videoWidth || 300;
-            canvas.height = video.videoHeight || 150;
-
+            statusDisplay.innerText = `במעקב (רוכב ${currentRider})...`;
+            canvas.width = video.videoWidth || 300; canvas.height = video.videoHeight || 150;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             lastFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            
-            startTime = performance.now();
-            isRunning = true;
-            runDetectionTimer();
+            startTime = performance.now(); isRunning = true; runDetectionTimer();
         }
 
         function runDetectionTimer() {
             if (!isRunning) return;
-
-            const elapsed = (performance.now() - startTime) / 1000;
-            timerDisplay.innerText = elapsed.toFixed(3);
-            
+            timerDisplay.innerText = ((performance.now() - startTime) / 1000).toFixed(3);
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             let currentData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-            let startX = Math.floor(canvas.width * cropInfo.left);
-            let endX = Math.floor(canvas.width * cropInfo.right);
-            let startY = Math.floor(canvas.height * cropInfo.top);
-            let endY = Math.floor(canvas.height * cropInfo.bottom);
-
+            let startX = Math.floor(canvas.width * cropInfo.left), endX = Math.floor(canvas.width * cropInfo.right);
+            let startY = Math.floor(canvas.height * cropInfo.top), endY = Math.floor(canvas.height * cropInfo.bottom);
             let diffCount = 0;
 
             for (let y = startY; y < endY; y += 10) {
                 for (let x = startX; x < endX; x += 10) {
                     let i = (y * canvas.width + x) * 4;
-                    let rDiff = Math.abs(currentData.data[i] - lastFrameData.data[i]);
-                    let gDiff = Math.abs(currentData.data[i+1] - lastFrameData.data[i+1]);
-                    let bDiff = Math.abs(currentData.data[i+2] - lastFrameData.data[i+2]);
-
-                    if ((rDiff + gDiff + bDiff) > 80) {
-                        diffCount++;
-                    }
+                    if ((Math.abs(currentData.data[i] - lastFrameData.data[i]) + Math.abs(currentData.data[i+1] - lastFrameData.data[i+1]) + Math.abs(currentData.data[i+2] - lastFrameData.data[i+2])) > 80) diffCount++;
                 }
             }
 
             if (diffCount > 15) {
-                isRunning = false;
-                playFinalBeep();
-                
-                let finalTime = timerDisplay.innerText;
-                let sessionName = document.getElementById('sessionName').value || "סשן";
-                let recordName = `${sessionName} (רוכב ${currentRider})`;
-                saveResult(recordName, finalTime);
+                isRunning = false; playFinalBeep();
+                saveResult(timerDisplay.innerText);
 
                 if (currentRider < totalRiders) {
                     currentRider++;
                     let gapSeconds = parseInt(document.getElementById('gapSelect').value);
-                    statusDisplay.innerText = `רוכב ${currentRider - 1} סיים! מתחיל רוכב ${currentRider} בעוד ${gapSeconds} שניות...`;
-                    
                     if (gapSeconds === 0) {
-                        playFinalBeep();
-                        if (!isFinished) {
-                            handleTrackDelay(beginRunTimer);
-                        }
+                        playFinalBeep(); if (!isFinished) handleTrackDelay(beginRunTimer);
                     } else {
                         let gapCounter = gapSeconds;
-                        if (gapCounter <= 10 && gapCounter > 0) speakText(gapCounter.toString()); // מתחיל ישר
-                        
+                        if (gapCounter <= 10 && gapCounter > 0) speakText(gapCounter.toString());
                         let gapTimer = setInterval(() => {
                             gapCounter--;
-                            if (gapCounter > 0) {
-                                if (gapCounter <= 10) speakText(gapCounter.toString());
-                                statusDisplay.innerText = `רוכב ${currentRider - 1} סיים! מתחיל רוכב ${currentRider} בעוד ${gapCounter} שניות...`;
-                            } else {
-                                clearInterval(gapTimer);
-                                playFinalBeep();
-                                if (!isFinished) {
-                                    handleTrackDelay(beginRunTimer);
-                                }
-                            }
+                            if (gapCounter > 0) { if (gapCounter <= 10) speakText(gapCounter.toString()); } 
+                            else { clearInterval(gapTimer); playFinalBeep(); if (!isFinished) handleTrackDelay(beginRunTimer); }
                         }, 1000);
                     }
-                } else {
-                    isFinished = true;
-                    statusDisplay.innerText = "כל הרוכבים סיימו בהצלחה!";
-                }
+                } else { isFinished = true; statusDisplay.innerText = "סיימנו!"; }
                 return;
             }
-
-            lastFrameData = currentData;
-            requestAnimationFrame(runDetectionTimer);
+            lastFrameData = currentData; requestAnimationFrame(runDetectionTimer);
         }
 
-        function saveResult(session, time) {
-            let history = JSON.parse(localStorage.getItem('bikeTimerHistory') || '[]');
-            history.unshift({ session, time });
-            localStorage.setItem('bikeTimerHistory', JSON.stringify(history));
-            renderHistory(history);
-        }
-
-        function loadHistory() {
-            let history = JSON.parse(localStorage.getItem('bikeTimerHistory') || '[]');
-            renderHistory(history);
-        }
-
-        function renderHistory(history) {
-            resultsList.innerHTML = '';
-            history.forEach(item => {
-                let li = document.createElement('li');
-                li.innerText = `${item.session}: ${item.time} שניות`;
-                resultsList.appendChild(li);
+        function saveResult(timeStr) {
+            let session = document.getElementById('sessionName').value || "אימון חופשי";
+            let baseComp = document.getElementById('competitorName').value || "רוכב אנונימי";
+            let compName = totalRiders > 1 ? `${baseComp} (ר' ${currentRider})` : baseComp;
+            
+            // שומרים ל-LocalStorage הגלובלי כדי שלוח התוצאות יקרא את זה
+            let history = JSON.parse(localStorage.getItem('bikeTimerLeaderboard') || '[]');
+            history.push({ 
+                session: session, 
+                competitor: compName, 
+                time: parseFloat(timeStr),
+                timestamp: Date.now()
             });
-        }
-
-        function clearHistory() {
-            localStorage.removeItem('bikeTimerHistory');
-            resultsList.innerHTML = '';
+            localStorage.setItem('bikeTimerLeaderboard', JSON.stringify(history));
         }
 
         function resetTimer() {
-            isRunning = false;
-            isWaitingForStartMotion = false;
-            isFinished = false;
-            currentRider = 1;
+            isRunning = false; isWaitingForStartMotion = false; isFinished = false; currentRider = 1;
             if (countdownTimer) clearInterval(countdownTimer);
-            timerDisplay.innerText = "00.000";
-            statusDisplay.innerText = "מוכן להתחלה";
+            timerDisplay.innerText = "00.000"; statusDisplay.innerText = "מוכן לזינוק";
             drawPreview();
         }
     </script>
