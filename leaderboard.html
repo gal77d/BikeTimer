@@ -70,6 +70,7 @@
             padding: 16px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.15);
             text-align: right;
+            margin-bottom: 10px;
         }
 
         table {
@@ -105,6 +106,19 @@
             color: var(--text-muted);
             padding: 20px;
             font-size: 0.95rem;
+            text-align: center;
+        }
+
+        .session-title {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--accent);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            border-bottom: 2px solid rgba(0, 255, 204, 0.2);
+            padding-bottom: 5px;
         }
     </style>
 </head>
@@ -116,53 +130,68 @@
     </header>
     
     <div class="container">
-        <div class="card">
-            <div style="font-weight: 700; margin-bottom: 10px; color: var(--accent);">תוצאות שמורות לפי מהירות:</div>
-            <div id="tableContainer">
-                <div class="empty-msg">טוען תוצאות...</div>
-            </div>
-            <button class="clear-btn" onclick="clearLeaderboard()">🗑️ איפוס לוח תוצאות</button>
+        <div id="sessionsContainer">
+            <div class="empty-msg">טוען תוצאות...</div>
         </div>
+        <button class="clear-btn" onclick="clearLeaderboard()">🗑️ איפוס כל לוחות התוצאות</button>
     </div>
 
     <script>
         function loadLeaderboard() {
             let history = JSON.parse(localStorage.getItem('bikeTimerLeaderboard') || '[]');
-            const container = document.getElementById('tableContainer');
+            const container = document.getElementById('sessionsContainer');
 
             if (history.length === 0) {
-                container.innerHTML = '<div class="empty-msg">אין עדיין תוצאות שמורות. צא לרכב ותקבע זמן!</div>';
+                container.innerHTML = '<div class="card"><div class="empty-msg">אין עדיין תוצאות שמורות. צא לרכב ותקבע זמן!</div></div>';
                 return;
             }
 
-            // מיון התוצאות מהמהיר ביותר (זמן נמוך) לאיטי
-            history.sort((a, b) => a.time - b.time);
-
-            let html = `<table>
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>רוכב / סשן</th>
-                        <th>זמן</th>
-                    </tr>
-                </thead>
-                <tbody>`;
-
-            history.forEach((item, index) => {
-                let medal = index === 0 ? '🥇 ' : index === 1 ? '🥈 ' : index === 2 ? '🥉 ' : `${index + 1}. `;
-                html += `<tr>
-                    <td>${medal}</td>
-                    <td><b>${item.competitor}</b><br><span style="font-size:0.75rem; color:var(--text-muted);">${item.session}</span></td>
-                    <td><b style="color:var(--accent);">${item.time.toFixed(3)}</b></td>
-                </tr>`;
+            // קיבוץ התוצאות לפי שם הסשן
+            let grouped = {};
+            history.forEach(item => {
+                let sessionName = item.session && item.session.trim() !== "" ? item.session : "אימון כללי";
+                if (!grouped[sessionName]) {
+                    grouped[sessionName] = [];
+                }
+                grouped[sessionName].push(item);
             });
 
-            html += `</tbody></table>`;
+            let html = '';
+
+            // מעבר על כל סשן ויצירת טבלה נפרדת עבורו
+            for (let sessionName in grouped) {
+                // מיון התוצאות בסשן מהמהיר לאיטי
+                grouped[sessionName].sort((a, b) => a.time - b.time);
+
+                html += `<div class="card">
+                    <div class="session-title">🌲 ${sessionName}</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>שם הרוכב</th>
+                                <th>זמן</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+
+                grouped[sessionName].forEach((item, index) => {
+                    let medal = index === 0 ? '🥇 ' : index === 1 ? '🥈 ' : index === 2 ? '🥉 ' : `${index + 1}. `;
+                    html += `<tr>
+                        <td>${medal}</td>
+                        <td><b>${item.competitor}</b></td>
+                        <td><b style="color:var(--accent);">${item.time.toFixed(3)}</b></td>
+                    </tr>`;
+                });
+
+                html += `</tbody></table></div>`;
+            }
+
             container.innerHTML = html;
         }
 
         function clearLeaderboard() {
-            if (confirm("בטוח שאתה רוצה למחוק את כל היסטוריית התוצאות?")) {
+            if (confirm("בטוח שאתה רוצה למחוק את כל היסטוריית התוצאות מכל המסלולים?")) {
                 localStorage.removeItem('bikeTimerLeaderboard');
                 loadLeaderboard();
             }
