@@ -275,10 +275,8 @@
             try {
                 if (audioCtx.state === 'suspended') audioCtx.resume();
                 
-                // קודם כל מדבר
                 speakText(timeLeft.toString());
 
-                // ואז מצפצף
                 const osc = audioCtx.createOscillator();
                 const gainNode = audioCtx.createGain();
                 
@@ -503,7 +501,6 @@
         function startSession() {
             if (isRunning || isWaitingForStartMotion) return;
             
-            // "משחרר" את האודיו לדפדפנים בטלפון מיד בלחיצה הראשונה
             unlockAudio();
 
             let delaySetting = document.getElementById('delaySelect').value;
@@ -546,12 +543,6 @@
                     } else {
                         clearInterval(countdownTimer);
                         playFinalBeep();
-                        
-                        let trackDelay = parseInt(document.getElementById('trackDelaySelect').value);
-                        if (trackDelay === 0) {
-                            speakText("צא לדרך!");
-                        }
-
                         handleTrackDelay(beginRunTimer);
                     }
                 }, 1000);
@@ -563,7 +554,6 @@
             if (trackDelay > 0) {
                 let trackCounter = trackDelay;
                 statusDisplay.innerText = `צא למסלול! זינוק בעוד ${trackCounter} שניות...`;
-                speakText(`זינוק בעוד ${trackCounter} שניות`);
                 let trackTimer = setInterval(() => {
                     trackCounter--;
                     if (trackCounter > 0) {
@@ -572,7 +562,6 @@
                     } else {
                         clearInterval(trackTimer);
                         playFinalBeep();
-                        speakText("צא!");
                         onCompleteCallback();
                     }
                 }, 1000);
@@ -583,7 +572,6 @@
 
         function activateMotionSensor() {
             statusDisplay.innerText = `ממתין לתנועה של רוכב ${currentRider} — עבור בפריים להתחלה!`;
-            speakText(`רוכב ${currentRider}, מחכה לתנועה`);
             canvas.width = video.videoWidth || 300;
             canvas.height = video.videoHeight || 150;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -625,7 +613,6 @@
                     startTime = performance.now();
                     isRunning = true;
                     statusDisplay.innerText = `רוכב ${currentRider} בדרך!`;
-                    speakText("רוכב בדרך");
                     lastFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                     requestAnimationFrame(runAutoMotionDetection);
                     return;
@@ -641,8 +628,6 @@
                     playFinalBeep();
                     
                     let finalTime = timerDisplay.innerText;
-                    speakText(`רוכב ${currentRider} סיים. זמן: ${finalTime} שניות`);
-
                     let sessionName = document.getElementById('sessionName').value || "סשן";
                     let recordName = `${sessionName} (רוכב ${currentRider})`;
                     saveResult(recordName, finalTime);
@@ -666,10 +651,6 @@
                                     
                                     let delaySetting = document.getElementById('delaySelect').value;
                                     if (delaySetting === "auto_motion") {
-                                        let trackDelay = parseInt(document.getElementById('trackDelaySelect').value);
-                                        if (trackDelay === 0) {
-                                            speakText("צא לדרך!");
-                                        }
                                         handleTrackDelay(activateMotionSensor);
                                     }
                                 }
@@ -678,7 +659,6 @@
                     } else {
                         isFinished = true;
                         statusDisplay.innerText = "כל הרוכבים סיימו בהצלחה!";
-                        speakText("כל הרוכבים סיימו בהצלחה");
                     }
                     return;
                 }
@@ -749,8 +729,6 @@
                 playFinalBeep();
                 
                 let finalTime = timerDisplay.innerText;
-                speakText(`רוכב ${currentRider} סיים. זמן: ${finalTime} שניות`);
-
                 let sessionName = document.getElementById('sessionName').value || "סשן";
                 let recordName = `${sessionName} (רוכב ${currentRider})`;
                 saveResult(recordName, finalTime);
@@ -763,10 +741,6 @@
                     if (gapSeconds === 0) {
                         playFinalBeep();
                         if (!isFinished) {
-                            let trackDelay = parseInt(document.getElementById('trackDelaySelect').value);
-                            if (trackDelay === 0) {
-                                speakText("צא לדרך!");
-                            }
                             handleTrackDelay(beginRunTimer);
                         }
                     } else {
@@ -778,10 +752,6 @@
                                 clearInterval(gapTimer);
                                 playFinalBeep();
                                 if (!isFinished) {
-                                    let trackDelay = parseInt(document.getElementById('trackDelaySelect').value);
-                                    if (trackDelay === 0) {
-                                        speakText("צא לדרך!");
-                                    }
                                     handleTrackDelay(beginRunTimer);
                                 }
                             }
@@ -790,7 +760,6 @@
                 } else {
                     isFinished = true;
                     statusDisplay.innerText = "כל הרוכבים סיימו בהצלחה!";
-                    speakText("כל הרוכבים סיימו בהצלחה");
                 }
                 return;
             }
