@@ -128,21 +128,13 @@
         .clear-btn { background: #333d4f; color: #ccc; font-size: 0.8rem; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; }
 
         video { display: none; }
-        
-        .canvases-container {
-            width: 90%;
-            max-width: 380px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            margin-top: 5px;
-        }
-
         canvas { 
-            width: 100%; 
+            width: 90%; 
+            max-width: 380px; 
             border: 3px solid #00ffcc; 
             border-radius: 12px; 
             background: #000; 
+            margin-top: 5px; 
             touch-action: none;
         }
     </style>
@@ -169,7 +161,7 @@
         <div style="display: flex; gap: 10px;">
             <div style="flex: 1; text-align: right;">
                 <label style="font-size: 0.8rem;">כמות רוכבים:</label>
-                <select id="ridersCount" onchange="updateRidersLayout(); saveSettings();">
+                <select id="ridersCount" onchange="saveSettings()">
                     <option value="1" selected>רוכב 1</option>
                     <option value="2">2 רוכבים</option>
                     <option value="3">3 רוכבים</option>
@@ -225,10 +217,7 @@
     <div id="timer">00.000</div>
 
     <video id="webcam" autoplay playsinline></video>
-    
-    <div class="canvases-container" id="canvasesContainer">
-        <canvas id="canvas0"></canvas>
-    </div>
+    <canvas id="canvas"></canvas>
 
     <div id="leaderboard" style="margin-top: 15px;">
         <h3>תוצאות הסשן הנוכחי</h3>
@@ -238,21 +227,22 @@
 
     <script>
         const video = document.getElementById('webcam');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d', {willReadFrequently: true});
         const timerDisplay = document.getElementById('timer');
         const statusDisplay = document.getElementById('status');
         const resultsList = document.getElementById('resultsList');
-        const canvasesContainer = document.getElementById('canvasesContainer');
         
         let startTime = 0;
         let isRunning = false;
         let isWaitingForStartMotion = false;
         let isFinished = false;
-        let lastFramesData = [];
+        let lastFrameData = null;
         let countdownTimer = null;
         let currentRider = 1;
         let totalRiders = 1;
 
-        let cropsInfo = JSON.parse(localStorage.getItem('bikeTimerCrops')) || [{ left: 0.0, right: 1.0, top: 0.5, bottom: 1.0 }];
+        let cropInfo = JSON.parse(localStorage.getItem('bikeTimerCrop')) || { left: 0.0, right: 1.0, top: 0.5, bottom: 1.0 };
         let activeDrag = null;
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -328,49 +318,7 @@
         window.addEventListener('DOMContentLoaded', () => {
             loadHistory();
             loadSettings();
-            updateRidersLayout();
         });
-
-        function updateRidersLayout() {
-            totalRiders = parseInt(document.getElementById('ridersCount').value);
-            canvasesContainer.innerHTML = '';
-            
-            while (cropsInfo.length < totalRiders) {
-                cropsInfo.push({ left: 0.0, right: 1.0, top: 0.5, bottom: 1.0 });
-            }
-
-            for (let i = 0; i < totalRiders; i++) {
-                let card = document.createElement('div');
-                card.style.display = "flex";
-                card.style.flexDirection = "column";
-                card.style.alignItems = "center";
-                card.style.width = "100%";
-                
-                let label = document.createElement('div');
-                label.innerText = `מסך מעקב לרוכב ${i + 1} (גרור לדייק)`;
-                label.style.fontSize = "0.75rem";
-                label.style.color = "#00ffcc";
-                label.style.marginBottom = "2px";
-                label.style.textAlign = "right";
-                label.style.width = "100%";
-
-                let canvas = document.createElement('canvas');
-                canvas.id = `canvas_${i}`;
-                canvas.width = video.videoWidth || 300;
-                canvas.height = video.videoHeight || 150;
-
-                setupCanvasEvents(canvas, i);
-
-                card.appendChild(label);
-                card.appendChild(canvas);
-                canvasesContainer.appendChild(card);
-            }
-        }
-
-        function setupCanvasEvents(canvas, riderIdx) {
-            canvas.addEventListener('mousedown', (e) => startDrag(e, riderIdx));
-            canvas.addEventListener('touchstart', (e) => startDrag(e, riderIdx), {passive: false});
-        }
 
         function saveSettings() {
             const settings = {
@@ -394,29 +342,28 @@
             }
         }
 
+        video.addEventListener('loadedmetadata', () => {
+            canvas.width = video.videoWidth || 300;
+            canvas.height = video.videoHeight || 150;
+            drawLiveFeed();
+        });
+
         navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-            .then(stream => { 
-                video.srcObject = stream; 
-                video.play();
-                requestAnimationFrame(drawLiveFeed);
-            })
+            .then(stream => { video.srcObject = stream; })
             .catch(err => { statusDisplay.innerText = "שגיאה בגישה למצלמה!"; });
 
         function setCropPreset(type) {
             if (isRunning || isWaitingForStartMotion) return;
-            totalRiders = parseInt(document.getElementById('ridersCount').value);
-            for (let i = 0; i < totalRiders; i++) {
-                if (type === 'full') {
-                    cropsInfo[i] = { left: 0.0, right: 1.0, top: 0.0, bottom: 1.0 };
-                } else if (type === 'half') {
-                    cropsInfo[i] = { left: 0.0, right: 1.0, top: 0.5, bottom: 1.0 };
-                }
+            if (type === 'full') {
+                cropInfo = { left: 0.0, right: 1.0, top: 0.0, bottom: 1.0 };
+            } else if (type === 'half') {
+                cropInfo = { left: 0.0, right: 1.0, top: 0.5, bottom: 1.0 };
             }
-            localStorage.setItem('bikeTimerCrops', JSON.stringify(cropsInfo));
-            drawPreviews();
+            localStorage.setItem('bikeTimerCrop', JSON.stringify(cropInfo));
+            drawPreview();
         }
 
-        function getPointerPos(e, canvas) {
+        function getPointerPos(e) {
             let rect = canvas.getBoundingClientRect();
             let clientX = e.touches ? e.touches[0].clientX : e.clientX;
             let clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -428,26 +375,25 @@
             };
         }
 
+        canvas.addEventListener('mousedown', startDrag);
+        canvas.addEventListener('touchstart', startDrag, {passive: false});
         window.addEventListener('mousemove', onDrag);
         window.addEventListener('touchmove', onDrag, {passive: false});
         window.addEventListener('mouseup', endDrag);
         window.addEventListener('touchend', endDrag);
 
-        function startDrag(e, riderIdx) {
+        function startDrag(e) {
             if (isRunning || isWaitingForStartMotion) return;
-            let canvas = document.getElementById(`canvas_${riderIdx}`);
-            let pos = getPointerPos(e, canvas);
-            let crop = cropsInfo[riderIdx];
+            let pos = getPointerPos(e);
             
-            let sx = canvas.width * crop.left;
-            let sy = canvas.height * crop.top;
-            let ex = canvas.width * crop.right;
-            let ey = canvas.height * crop.bottom;
+            let sx = canvas.width * cropInfo.left;
+            let sy = canvas.height * cropInfo.top;
+            let ex = canvas.width * cropInfo.right;
+            let ey = canvas.height * cropInfo.bottom;
 
             let touchMargin = 30;
+            activeDrag = { left: false, right: false, top: false, bottom: false, move: false };
             let dragging = false;
-
-            activeDrag = { riderIdx, left: false, right: false, top: false, bottom: false, move: false };
 
             if (Math.abs(pos.x - sx) < touchMargin && pos.y > sy - touchMargin && pos.y < ey + touchMargin) { activeDrag.left = true; dragging = true; }
             if (Math.abs(pos.x - ex) < touchMargin && pos.y > sy - touchMargin && pos.y < ey + touchMargin) { activeDrag.right = true; dragging = true; }
@@ -458,10 +404,10 @@
                 activeDrag.move = true;
                 activeDrag.startX = pos.x;
                 activeDrag.startY = pos.y;
-                activeDrag.origLeft = crop.left;
-                activeDrag.origRight = crop.right;
-                activeDrag.origTop = crop.top;
-                activeDrag.origBottom = crop.bottom;
+                activeDrag.origLeft = cropInfo.left;
+                activeDrag.origRight = cropInfo.right;
+                activeDrag.origTop = cropInfo.top;
+                activeDrag.origBottom = cropInfo.bottom;
                 dragging = true;
             }
 
@@ -473,10 +419,7 @@
             if (!activeDrag) return;
             if (e.type === 'touchmove') e.preventDefault();
             
-            let riderIdx = activeDrag.riderIdx;
-            let canvas = document.getElementById(`canvas_${riderIdx}`);
-            let pos = getPointerPos(e, canvas);
-            let crop = cropsInfo[riderIdx];
+            let pos = getPointerPos(e);
             let nx = pos.x / canvas.width;
             let ny = pos.y / canvas.height;
             const MIN_SIZE = 0.1;
@@ -484,89 +427,62 @@
             if (activeDrag.move) {
                 let dx = nx - (activeDrag.startX / canvas.width);
                 let dy = ny - (activeDrag.startY / canvas.height);
+                
                 let width = activeDrag.origRight - activeDrag.origLeft;
                 let height = activeDrag.origBottom - activeDrag.origTop;
 
-                crop.left = Math.max(0, Math.min(activeDrag.origLeft + dx, 1 - width));
-                crop.right = crop.left + width;
-                crop.top = Math.max(0, Math.min(activeDrag.origTop + dy, 1 - height));
-                crop.bottom = crop.top + height;
+                cropInfo.left = Math.max(0, Math.min(activeDrag.origLeft + dx, 1 - width));
+                cropInfo.right = cropInfo.left + width;
+                cropInfo.top = Math.max(0, Math.min(activeDrag.origTop + dy, 1 - height));
+                cropInfo.bottom = cropInfo.top + height;
             } else {
-                if (activeDrag.left)   crop.left = Math.max(0, Math.min(nx, crop.right - MIN_SIZE));
-                if (activeDrag.right)  crop.right = Math.min(1, Math.max(nx, crop.left + MIN_SIZE));
-                if (activeDrag.top)    crop.top = Math.max(0, Math.min(ny, crop.bottom - MIN_SIZE));
-                if (activeDrag.bottom) crop.bottom = Math.min(1, Math.max(ny, crop.top + MIN_SIZE));
+                if (activeDrag.left)   cropInfo.left = Math.max(0, Math.min(nx, cropInfo.right - MIN_SIZE));
+                if (activeDrag.right)  cropInfo.right = Math.min(1, Math.max(nx, cropInfo.left + MIN_SIZE));
+                if (activeDrag.top)    cropInfo.top = Math.max(0, Math.min(ny, cropInfo.bottom - MIN_SIZE));
+                if (activeDrag.bottom) cropInfo.bottom = Math.min(1, Math.max(ny, cropInfo.top + MIN_SIZE));
             }
         }
 
         function endDrag() {
             if (activeDrag) {
-                localStorage.setItem('bikeTimerCrops', JSON.stringify(cropsInfo));
+                localStorage.setItem('bikeTimerCrop', JSON.stringify(cropInfo));
             }
             activeDrag = null;
         }
 
         function drawLiveFeed() {
-            if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                if (!canvasWidthMatchesVideo()) {
-                    updateCanvasesResolution();
-                }
-                if (!isRunning && !isWaitingForStartMotion && !isFinished) {
-                    drawPreviews();
-                }
+            if (!video.videoWidth) return;
+            if (!isRunning && !isWaitingForStartMotion && !isFinished) {
+                drawPreview();
             }
             requestAnimationFrame(drawLiveFeed);
         }
 
-        function canvasWidthMatchesVideo() {
-            let c = document.getElementById('canvas_0');
-            return c && c.width === (video.videoWidth || 300);
-        }
+        function drawPreview() {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        function updateCanvasesResolution() {
-            totalRiders = parseInt(document.getElementById('ridersCount').value);
-            for (let i = 0; i < totalRiders; i++) {
-                let canvas = document.getElementById(`canvas_${i}`);
-                if (canvas) {
-                    canvas.width = video.videoWidth || 300;
-                    canvas.height = video.videoHeight || 150;
-                }
-            }
-        }
+            let sx = canvas.width * cropInfo.left;
+            let sy = canvas.height * cropInfo.top;
+            let sw = canvas.width * (cropInfo.right - cropInfo.left);
+            let sh = canvas.height * (cropInfo.bottom - cropInfo.top);
 
-        function drawPreviews() {
-            totalRiders = parseInt(document.getElementById('ridersCount').value);
-            for (let i = 0; i < totalRiders; i++) {
-                let canvas = document.getElementById(`canvas_${i}`);
-                if (!canvas) continue;
-                let ctx = canvas.getContext('2d', {willReadFrequently: true});
-                let crop = cropsInfo[i];
+            ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+            ctx.fillRect(0, 0, canvas.width, sy); 
+            ctx.fillRect(0, sy + sh, canvas.width, canvas.height - sy - sh); 
+            ctx.fillRect(0, sy, sx, sh); 
+            ctx.fillRect(sx + sw, sy, canvas.width - sx - sw, sh);
 
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = "#ff4444";
+            ctx.lineWidth = 3;
+            ctx.strokeRect(sx, sy, sw, sh);
 
-                let sx = canvas.width * crop.left;
-                let sy = canvas.height * crop.top;
-                let sw = canvas.width * (crop.right - crop.left);
-                let sh = canvas.height * (crop.bottom - crop.top);
-
-                ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
-                ctx.fillRect(0, 0, canvas.width, sy); 
-                ctx.fillRect(0, sy + sh, canvas.width, canvas.height - sy - sh); 
-                ctx.fillRect(0, sy, sx, sh); 
-                ctx.fillRect(sx + sw, sy, canvas.width - sx - sw, sh);
-
-                ctx.strokeStyle = "#ff4444";
-                ctx.lineWidth = 3;
-                ctx.strokeRect(sx, sy, sw, sh);
-
-                if (!isRunning && !isWaitingForStartMotion && !isFinished) {
-                    ctx.fillStyle = "#ffffff";
-                    let hs = 14; 
-                    ctx.fillRect(sx + sw/2 - hs/2, sy - hs/2, hs, hs); 
-                    ctx.fillRect(sx + sw/2 - hs/2, sy + sh - hs/2, hs, hs); 
-                    ctx.fillRect(sx + sw - hs/2, sy + sh/2 - hs/2, hs, hs); 
-                    ctx.fillRect(sx - hs/2, sy + sh/2 - hs/2, hs, hs); 
-                }
+            if (!isRunning && !isWaitingForStartMotion && !isFinished) {
+                ctx.fillStyle = "#ffffff";
+                let hs = 14; 
+                ctx.fillRect(sx + sw/2 - hs/2, sy - hs/2, hs, hs); 
+                ctx.fillRect(sx + sw/2 - hs/2, sy + sh - hs/2, hs, hs); 
+                ctx.fillRect(sx + sw - hs/2, sy + sh/2 - hs/2, hs, hs); 
+                ctx.fillRect(sx - hs/2, sy + sh/2 - hs/2, hs, hs); 
             }
         }
 
@@ -635,15 +551,10 @@
         function activateMotionSensor() {
             statusDisplay.innerText = `ממתין לתנועה של רוכב ${currentRider} — עבור בפריים להתחלה!`;
             speakText(`רוכב ${currentRider}, מחכה לתנועה`);
-            
-            let canvas = document.getElementById(`canvas_${currentRider - 1}`);
-            let ctx = canvas.getContext('2d', {willReadFrequently: true});
             canvas.width = video.videoWidth || 300;
             canvas.height = video.videoHeight || 150;
-            
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            lastFramesData[currentRider - 1] = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            
+            lastFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             isWaitingForStartMotion = true;
             runAutoMotionDetection();
         }
@@ -651,32 +562,25 @@
         function runAutoMotionDetection() {
             if (!isWaitingForStartMotion && !isRunning) return;
 
-            let canvas = document.getElementById(`canvas_${currentRider - 1}`);
-            let ctx = canvas.getContext('2d', {willReadFrequently: true});
-
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             let currentData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-            let crop = cropsInfo[currentRider - 1];
-            let startX = Math.floor(canvas.width * crop.left);
-            let endX = Math.floor(canvas.width * crop.right);
-            let startY = Math.floor(canvas.height * crop.top);
-            let endY = Math.floor(canvas.height * crop.bottom);
+            let startX = Math.floor(canvas.width * cropInfo.left);
+            let endX = Math.floor(canvas.width * cropInfo.right);
+            let startY = Math.floor(canvas.height * cropInfo.top);
+            let endY = Math.floor(canvas.height * cropInfo.bottom);
 
             let diffCount = 0;
-            let lastData = lastFramesData[currentRider - 1];
 
-            if (lastData) {
-                for (let y = startY; y < endY; y += 10) {
-                    for (let x = startX; x < endX; x += 10) {
-                        let i = (y * canvas.width + x) * 4;
-                        let rDiff = Math.abs(currentData.data[i] - lastData.data[i]);
-                        let gDiff = Math.abs(currentData.data[i+1] - lastData.data[i+1]);
-                        let bDiff = Math.abs(currentData.data[i+2] - lastData.data[i+2]);
+            for (let y = startY; y < endY; y += 10) {
+                for (let x = startX; x < endX; x += 10) {
+                    let i = (y * canvas.width + x) * 4;
+                    let rDiff = Math.abs(currentData.data[i] - lastFrameData.data[i]);
+                    let gDiff = Math.abs(currentData.data[i+1] - lastFrameData.data[i+1]);
+                    let bDiff = Math.abs(currentData.data[i+2] - lastFrameData.data[i+2]);
 
-                        if ((rDiff + gDiff + bDiff) > 80) {
-                            diffCount++;
-                        }
+                    if ((rDiff + gDiff + bDiff) > 80) {
+                        diffCount++;
                     }
                 }
             }
@@ -689,13 +593,13 @@
                     isRunning = true;
                     statusDisplay.innerText = `רוכב ${currentRider} בדרך!`;
                     speakText("רוכב בדרך");
-                    lastFramesData[currentRider - 1] = currentData;
+                    lastFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                     requestAnimationFrame(runAutoMotionDetection);
                     return;
                 } else if (isRunning) {
                     const elapsedCheck = (performance.now() - startTime) / 1000;
                     if (elapsedCheck < 3) {
-                        lastFramesData[currentRider - 1] = currentData;
+                        lastFrameData = currentData;
                         requestAnimationFrame(runAutoMotionDetection);
                         return;
                     }
@@ -752,13 +656,13 @@
                 timerDisplay.innerText = elapsed.toFixed(3);
                 
                 if (elapsed < 3) {
-                    lastFramesData[currentRider - 1] = currentData;
+                    lastFrameData = currentData;
                     requestAnimationFrame(runAutoMotionDetection);
                     return;
                 }
             }
 
-            lastFramesData[currentRider - 1] = currentData;
+            lastFrameData = currentData;
             if (isWaitingForStartMotion || isRunning) {
                 requestAnimationFrame(runAutoMotionDetection);
             }
@@ -767,13 +671,11 @@
         function beginRunTimer() {
             if (isFinished) return;
             statusDisplay.innerText = `ממתין לרוכב ${currentRider} מתוך ${totalRiders}...`;
-            let canvas = document.getElementById(`canvas_${currentRider - 1}`);
-            let ctx = canvas.getContext('2d', {willReadFrequently: true});
             canvas.width = video.videoWidth || 300;
             canvas.height = video.videoHeight || 150;
 
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            lastFramesData[currentRider - 1] = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            lastFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             
             startTime = performance.now();
             isRunning = true;
@@ -786,32 +688,25 @@
             const elapsed = (performance.now() - startTime) / 1000;
             timerDisplay.innerText = elapsed.toFixed(3);
             
-            let canvas = document.getElementById(`canvas_${currentRider - 1}`);
-            let ctx = canvas.getContext('2d', {willReadFrequently: true});
-
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             let currentData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-            let crop = cropsInfo[currentRider - 1];
-            let startX = Math.floor(canvas.width * crop.left);
-            let endX = Math.floor(canvas.width * crop.right);
-            let startY = Math.floor(canvas.height * crop.top);
-            let endY = Math.floor(canvas.height * crop.bottom);
+            let startX = Math.floor(canvas.width * cropInfo.left);
+            let endX = Math.floor(canvas.width * cropInfo.right);
+            let startY = Math.floor(canvas.height * cropInfo.top);
+            let endY = Math.floor(canvas.height * cropInfo.bottom);
 
             let diffCount = 0;
-            let lastData = lastFramesData[currentRider - 1];
 
-            if (lastData) {
-                for (let y = startY; y < endY; y += 10) {
-                    for (let x = startX; x < endX; x += 10) {
-                        let i = (y * canvas.width + x) * 4;
-                        let rDiff = Math.abs(currentData.data[i] - lastData.data[i]);
-                        let gDiff = Math.abs(currentData.data[i+1] - lastData.data[i+1]);
-                        let bDiff = Math.abs(currentData.data[i+2] - lastData.data[i+2]);
+            for (let y = startY; y < endY; y += 10) {
+                for (let x = startX; x < endX; x += 10) {
+                    let i = (y * canvas.width + x) * 4;
+                    let rDiff = Math.abs(currentData.data[i] - lastFrameData.data[i]);
+                    let gDiff = Math.abs(currentData.data[i+1] - lastFrameData.data[i+1]);
+                    let bDiff = Math.abs(currentData.data[i+2] - lastFrameData.data[i+2]);
 
-                        if ((rDiff + gDiff + bDiff) > 80) {
-                            diffCount++;
-                        }
+                    if ((rDiff + gDiff + bDiff) > 80) {
+                        diffCount++;
                     }
                 }
             }
@@ -867,7 +762,7 @@
                 return;
             }
 
-            lastFramesData[currentRider - 1] = currentData;
+            lastFrameData = currentData;
             requestAnimationFrame(runDetectionTimer);
         }
 
@@ -905,7 +800,7 @@
             if (countdownTimer) clearInterval(countdownTimer);
             timerDisplay.innerText = "00.000";
             statusDisplay.innerText = "מוכן להתחלה";
-            updateRidersLayout();
+            drawPreview();
         }
     </script>
 </body>
